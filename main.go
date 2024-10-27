@@ -2,16 +2,11 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
-	"log"
-	"net"
 	"os"
 	"reflect"
 	"slices"
 	"strings"
 	"time"
-
-	"github.com/hashicorp/mdns"
 
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
@@ -20,102 +15,9 @@ import (
 	"github.com/evertras/bubble-table/table"
 )
 
-/* ----- mDNS discovery ----- */
-const (
-	QUERY_INTERVAL  = 11
-	QUERY_TIMEOUT   = 10
-	UPDATE_INTERVAL = 1
-	MDNS_META_QUERY = "_services._dns-sd._udp" // Used to query all peers for their services
-)
-
-type Discovery struct {
-	Params    *mdns.QueryParam
-	Entries   []mdns.ServiceEntry
-	entriesCh chan *mdns.ServiceEntry
-	timer     *time.Ticker
-	stop      chan struct{}
-}
-
-var discoveries []*Discovery
-
-func InitDiscovery() {
-	discoveries = make([]*Discovery, 0)
-
-	discovery := NewDiscovery(MDNS_META_QUERY, "en0")
-	discoveries = append(discoveries, discovery)
-	discovery.Start()
-}
-
-func NewDiscovery(service string, iface string) *Discovery {
-	itf, _ := net.InterfaceByName(iface)
-	entriesCh := make(chan *mdns.ServiceEntry, 10)
-	entries := make([]mdns.ServiceEntry, 0)
-	return &Discovery{
-		Entries:   entries,
-		entriesCh: entriesCh,
-		Params: &mdns.QueryParam{
-			Service:             service,
-			Domain:              "local",
-			Timeout:             QUERY_TIMEOUT * time.Second,
-			Entries:             entriesCh,
-			Interface:           itf,
-			WantUnicastResponse: true,
-			DisableIPv4:         false,
-			DisableIPv6:         true,
-		},
-	}
-}
-
-func (d *Discovery) Start() {
-	d.timer = time.NewTicker(QUERY_INTERVAL * time.Second)
-	d.stop = make(chan struct{})
-
-	go d.Run()
-}
-
-func (d *Discovery) Stop() {
-	close(d.stop)
-}
-
-func (d *Discovery) Run() {
-	defer d.timer.Stop()
-
-	// Running the queries at interval in it's own goroutine
-	go func() {
-		mdns.Query(d.Params)
-		for {
-			select {
-			case <-d.stop:
-				return
-			case <-d.timer.C:
-				mdns.Query(d.Params)
-			}
-		}
-	}()
-
-	for {
-		select {
-		case <-d.stop:
-			return
-		case <-d.entriesCh:
-			for entry := range d.entriesCh {
-				found := false
-				for _, existing := range d.Entries {
-					if reflect.DeepEqual(entry, existing) {
-						found = true
-						break
-					}
-				}
-				if !found {
-					d.Entries = append(d.Entries, *entry)
-				}
-			}
-		}
-	}
-
-}
-
 /* ----- BubbleTea app ----- */
+const UPDATE_INTERVAL = 1 // in seconds
+
 const (
 	SortedNone int = iota
 	SortedAsc
@@ -161,7 +63,7 @@ func (k keyMap) FullHelp() [][]key.Binding {
 type Model struct {
 	table   table.Model
 	columns []table.Column
-	data    []mdns.ServiceEntry
+	data    []ServiceEntry
 
 	keys keyMap // Our own keymap to use the help interface
 	help help.Model
@@ -251,17 +153,13 @@ func NewModel() Model {
 		// WithKeyMap(keys).
 		// WithStaticFooter("A footer!").
 		WithBaseStyle(tableBaseStyle).
-		HeaderStyle(tableHeaderStyle)
+		HeaderStyle(tableHeaderStyle).
+		HighlightStyle(tableHighlightedRowStyle)
 
 	help := help.New()
 	help.ShortSeparator = "  •  "
-	keyStyle := lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{
-		Light: "#909090",
-		// Dark:  "#a0a0a0",
-		Dark: "204",
-	})
-	help.Styles.ShortKey = keyStyle
-	help.Styles.FullKey = keyStyle
+	help.Styles.ShortKey = helpKeyStyle
+	help.Styles.FullKey = helpKeyStyle
 
 	return Model{
 		table:   table,
@@ -271,12 +169,12 @@ func NewModel() Model {
 	}
 }
 
-type EntryMsg []mdns.ServiceEntry
+type EntryMsg []ServiceEntry
 
 func tickEvery() tea.Cmd {
 	return tea.Every(UPDATE_INTERVAL*time.Second, func(t time.Time) tea.Msg {
 
-		entries := make([]mdns.ServiceEntry, 0)
+		entries := make([]ServiceEntry, 0)
 		for _, discovery := range discoveries {
 			entries = append(entries, discovery.Entries...)
 		}
@@ -358,7 +256,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
-func generateRowsFromData(data []mdns.ServiceEntry) []table.Row {
+func generateRowsFromData(data []ServiceEntry) []table.Row {
 	rows := []table.Row{}
 
 	for _, entry := range data {
@@ -418,6 +316,7 @@ func (m *Model) sort() {
 var tableBaseStyle = lipgloss.NewStyle().
 	BorderStyle(lipgloss.NormalBorder()).
 	BorderForeground(lipgloss.Color("240")).
+	Foreground(lipgloss.Color("252")).
 	Align(lipgloss.Left)
 
 var tableHeaderStyle = lipgloss.NewStyle().
@@ -425,14 +324,26 @@ var tableHeaderStyle = lipgloss.NewStyle().
 	Bold(true).
 	Align(lipgloss.Center)
 
+var tableHighlightedRowStyle = lipgloss.NewStyle().
+	Bold(true).
+	Background(lipgloss.Color("96")).
+	Foreground(lipgloss.Color("255"))
+
 // Window
-var topStyle = lipgloss.NewStyle().Padding(1, 3).
+var topStyle = lipgloss.NewStyle().Padding(1, 3, 0).
 	Bold(true).
 	Foreground(lipgloss.Color("202"))
 
 var tableStyle = lipgloss.NewStyle()
 
 var helpStyle = lipgloss.NewStyle().Padding(1, 2)
+
+// Other
+var helpKeyStyle = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{
+	Light: "#909090",
+	// Dark:  "#a0a0a0",
+	Dark: "205",
+})
 
 func (m Model) View() string {
 	topStr := strings.Builder{}
@@ -458,8 +369,6 @@ func (m Model) View() string {
 
 /* ----- Entrypoint ----- */
 func main() {
-	log.SetOutput(ioutil.Discard)
-
 	InitDiscovery()
 
 	m := NewModel()
