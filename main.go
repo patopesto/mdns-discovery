@@ -17,11 +17,10 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	// "github.com/charmbracelet/bubbles/table"
-	// "github.com/charmbracelet/lipgloss/table"
 	"github.com/evertras/bubble-table/table"
 )
 
+/* ----- mDNS discovery ----- */
 const (
 	QUERY_INTERVAL  = 11
 	QUERY_TIMEOUT   = 10
@@ -116,6 +115,7 @@ func (d *Discovery) Run() {
 
 }
 
+/* ----- BubbleTea app ----- */
 const (
 	SortedNone int = iota
 	SortedAsc
@@ -135,8 +135,8 @@ type keyMap struct {
 	SortIp       key.Binding
 	SortPort     key.Binding
 
-    Sort       key.Binding // fake key only for description purposes
-    Filter     key.Binding
+	Sort   key.Binding // fake key only for description purposes
+	Filter key.Binding
 
 	Help key.Binding
 	Quit key.Binding
@@ -149,11 +149,11 @@ func (k keyMap) ShortHelp() []key.Binding {
 func (k keyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Up, k.Down},
-        {k.Left, k.Right},
-		{k.SortName, k.SortService,},
-        {k.SortDomain, k.SortHostname},
+		{k.Left, k.Right},
+		{k.SortName, k.SortService},
+		{k.SortDomain, k.SortHostname},
 		{k.SortIp, k.SortPort},
-        {k.Filter},
+		{k.Filter},
 		{k.Help, k.Quit},
 	}
 }
@@ -217,14 +217,14 @@ func NewModel() Model {
 			key.WithKeys("6"),
 			key.WithHelp("6", "sort by port "),
 		),
-        Sort: key.NewBinding(
-            key.WithKeys(""),
-            key.WithHelp("[1-6]", "sort"),
-        ),
-        Filter: key.NewBinding(
-            key.WithKeys("/"),
-            key.WithHelp("/", "filter"),
-        ),
+		Sort: key.NewBinding(
+			key.WithKeys(""),
+			key.WithHelp("[1-6]", "sort"),
+		),
+		Filter: key.NewBinding(
+			key.WithKeys("/"),
+			key.WithHelp("/", "filter"),
+		),
 		Help: key.NewBinding(
 			key.WithKeys("?"),
 			key.WithHelp("?", "toggle help"),
@@ -247,21 +247,21 @@ func NewModel() Model {
 
 	table := table.New(columns).
 		Focused(true).
-        Filtered(true).
+		Filtered(true).
 		// WithKeyMap(keys).
 		// WithStaticFooter("A footer!").
 		WithBaseStyle(tableBaseStyle).
 		HeaderStyle(tableHeaderStyle)
 
-    help := help.New()
-    help.ShortSeparator = "  •  "
-    keyStyle := lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{
-        Light: "#909090",
-        // Dark:  "#a0a0a0",
-        Dark:  "204",
-    })
-    help.Styles.ShortKey = keyStyle
-    help.Styles.FullKey = keyStyle
+	help := help.New()
+	help.ShortSeparator = "  •  "
+	keyStyle := lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{
+		Light: "#909090",
+		// Dark:  "#a0a0a0",
+		Dark: "204",
+	})
+	help.Styles.ShortKey = keyStyle
+	help.Styles.FullKey = keyStyle
 
 	return Model{
 		table:   table,
@@ -319,8 +319,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.totalWidth = msg.Width
 		m.totalHeight = msg.Height
-        m.table = m.table.WithTargetWidth(msg.Width)
-        m.help.Width = msg.Width
+		m.table = m.table.WithTargetWidth(msg.Width)
+		m.help.Width = msg.Width
 
 	case tea.KeyMsg:
 		switch {
@@ -350,55 +350,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.sort()
 		case key.Matches(msg, m.keys.Help):
 			m.help.ShowAll = !m.help.ShowAll
-        case key.Matches(msg, m.keys.Quit):
-            cmds = append(cmds, tea.Quit)
+		case key.Matches(msg, m.keys.Quit):
+			cmds = append(cmds, tea.Quit)
 		}
 	}
 
 	return m, tea.Batch(cmds...)
-}
-
-// Styles
-// Table
-var tableBaseStyle = lipgloss.NewStyle().
-    BorderStyle(lipgloss.NormalBorder()).
-    BorderForeground(lipgloss.Color("240")).
-    Align(lipgloss.Left)
-
-var tableHeaderStyle = lipgloss.NewStyle().
-    Foreground(lipgloss.Color("203")).
-    Bold(true).
-    Align(lipgloss.Center)
-
-// Window
-var topStyle = lipgloss.NewStyle().Padding(1, 3).
-    Bold(true).
-    Foreground(lipgloss.Color("202"))
-
-var tableStyle = lipgloss.NewStyle()
-
-var helpStyle = lipgloss.NewStyle().Padding(1, 2)
-
-func (m Model) View() string {
-    topStr := strings.Builder{}
-    topStr.WriteString("mDNS Discovery\n")
-
-    topBlock := topStyle.Render(topStr.String())
-    helpBlock :=  helpStyle.Render(m.help.View(m.keys))
-
-    // Compute heights to send to table
-    topHeight := lipgloss.Height(topBlock)
-    helpHeight := lipgloss.Height(helpBlock)
-    tableHeight := m.totalHeight - topHeight - helpHeight
-    m.table = m.table.WithMinimumHeight(tableHeight)
-
-    view := lipgloss.JoinVertical(
-        lipgloss.Left,
-        topBlock,
-        tableStyle.Render(m.table.View()),
-        helpBlock,
-    )
-    return lipgloss.NewStyle().Render(view)
 }
 
 func generateRowsFromData(data []mdns.ServiceEntry) []table.Row {
@@ -456,6 +413,50 @@ func (m *Model) sort() {
 	m.table = m.table.WithColumns(new_columns)
 }
 
+/* ----- Styles ----- */
+// Table
+var tableBaseStyle = lipgloss.NewStyle().
+	BorderStyle(lipgloss.NormalBorder()).
+	BorderForeground(lipgloss.Color("240")).
+	Align(lipgloss.Left)
+
+var tableHeaderStyle = lipgloss.NewStyle().
+	Foreground(lipgloss.Color("203")).
+	Bold(true).
+	Align(lipgloss.Center)
+
+// Window
+var topStyle = lipgloss.NewStyle().Padding(1, 3).
+	Bold(true).
+	Foreground(lipgloss.Color("202"))
+
+var tableStyle = lipgloss.NewStyle()
+
+var helpStyle = lipgloss.NewStyle().Padding(1, 2)
+
+func (m Model) View() string {
+	topStr := strings.Builder{}
+	topStr.WriteString("mDNS Discovery\n")
+
+	topBlock := topStyle.Render(topStr.String())
+	helpBlock := helpStyle.Render(m.help.View(m.keys))
+
+	// Compute height of all elements to send to table
+	topHeight := lipgloss.Height(topBlock)
+	helpHeight := lipgloss.Height(helpBlock)
+	tableHeight := m.totalHeight - topHeight - helpHeight
+	m.table = m.table.WithMinimumHeight(tableHeight)
+
+	view := lipgloss.JoinVertical(
+		lipgloss.Left,
+		topBlock,
+		tableStyle.Render(m.table.View()),
+		helpBlock,
+	)
+	return lipgloss.NewStyle().Render(view)
+}
+
+/* ----- Entrypoint ----- */
 func main() {
 	log.SetOutput(ioutil.Discard)
 
