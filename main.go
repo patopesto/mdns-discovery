@@ -7,8 +7,9 @@ import (
 	"net"
 	"os"
 	"reflect"
-	"strconv"
+	// "strconv"
 	"strings"
+    "slices"
 	"time"
 
 	"github.com/hashicorp/mdns"
@@ -140,6 +141,7 @@ const (
 
 type Model struct {
 	table table.Model
+    columns []table.Column
 	data  []mdns.ServiceEntry
 
 	// Window dimensions
@@ -160,20 +162,22 @@ func NewModel() Model {
 	keys.RowDown.SetKeys("j", "down", "s")
 	keys.RowUp.SetKeys("k", "up", "w")
 
-	table := table.New([]table.Column{
-		table.NewColumn("name", "Name", 50),
-		// This table uses flex columns, but it will still need a target
-		// width in order to know what width it should fill.  In this example
-		// the target width is set below in `recalculateTable`, which sets
-		// the table to the width of the screen to demonstrate resizing
-		// with flex columns.
-		table.NewFlexColumn("service", "Service", 6),
-		table.NewFlexColumn("domain", "Domain", 1),
-		table.NewFlexColumn("hostname", "Hostname", 8),
-		table.NewFlexColumn("ip", "IP", 3),
-		table.NewFlexColumn("port", "Port", 1),
-		table.NewFlexColumn("info", "Info", 8),
-	}).
+    columns := []table.Column{
+        table.NewColumn("name", "Name", 50),
+        // This table uses flex columns, but it will still need a target
+        // width in order to know what width it should fill.  In this example
+        // the target width is set below in `recalculateTable`, which sets
+        // the table to the width of the screen to demonstrate resizing
+        // with flex columns.
+        table.NewFlexColumn("service", "Service", 6),
+        table.NewFlexColumn("domain", "Domain", 1),
+        table.NewFlexColumn("hostname", "Hostname", 8),
+        table.NewFlexColumn("ip", "IP", 3),
+        table.NewFlexColumn("port", "Port", 1),
+        table.NewFlexColumn("info", "Info", 8),
+    }
+
+	table := table.New(columns).
 		// SelectableRows(true).
 		Focused(true).
 		WithKeyMap(keys).
@@ -183,6 +187,7 @@ func NewModel() Model {
 
 	return Model{
 		table: table,
+        columns: columns,
 	}
 }
 
@@ -230,6 +235,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.data = data
 		m.table = m.table.WithRows(generateRowsFromData(m.data))
 		cmds = append(cmds, tickEvery())
+
 	case tea.WindowSizeMsg:
 		m.totalWidth = msg.Width
 		m.totalHeight = msg.Height
@@ -239,19 +245,35 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.String() {
 		case "q", "ctrl+c", "esc":
 			cmds = append(cmds, tea.Quit)
-		case "kp1":
+		case "1":
             m.sortedColumnKey = "name"
             m.sortedDirection += 1
             m.sort()
-        case "kp2":
+        case "2":
             m.sortedColumnKey = "service"
+            m.sortedDirection += 1
+            m.sort()
+        case "3":
+            m.sortedColumnKey = "domain"
+            m.sortedDirection += 1
+            m.sort()
+        case "4":
+            m.sortedColumnKey = "hostname"
+            m.sortedDirection += 1
+            m.sort()
+        case "5":
+            m.sortedColumnKey = "ip"
+            m.sortedDirection += 1
+            m.sort()
+        case "6":
+            m.sortedColumnKey = "port"
             m.sortedDirection += 1
             m.sort()
 			// case "enter":
 			// 	return m, tea.Batch(
 			// 		tea.Printf("Let's go to %s!", m.table.SelectedRow()[1]),
 			// 	)
-		}
+        }
 	}
 
 	return m, tea.Batch(cmds...)
@@ -271,8 +293,8 @@ func generateRowsFromData(data []mdns.ServiceEntry) []table.Row {
 			"service":  strings.Join(name[1:len(name)-2], "."),
 			"domain":   name[len(name)-2],
 			"hostname": entry.Host,
-			"ip":       entry.AddrV4.String(),
-			"port":     strconv.Itoa(entry.Port),
+            "ip":       entry.AddrV4,
+            "port":     entry.Port,
 			"info":     entry.Info,
 		})
 
@@ -294,7 +316,7 @@ func (m Model) calculateHeight() int {
 	return m.totalHeight - m.verticalMargin - fixedVerticalMargin
 }
 
-func (m Model) sort() {
+func (m *Model) sort() {
     if m.sortedDirection == SortedAsc {
         m.table = m.table.SortByAsc(m.sortedColumnKey)
     } else if m.sortedDirection == SortedDesc {
@@ -302,7 +324,30 @@ func (m Model) sort() {
     } else {
         m.sortedDirection = SortedNone
         m.table = m.table.SortByAsc("") // trick to reset sorting
-    }   
+    }
+
+    // Update column header
+    new_columns := slices.Clone(m.columns)
+    for idx, column := range m.columns {
+        if column.Key() == m.sortedColumnKey {
+            title := column.Title()
+            if m.sortedDirection == SortedAsc {
+                title = fmt.Sprintf("%s ▼", title)
+            } else if ( m.sortedDirection == SortedDesc) {
+                title = fmt.Sprintf("%s ▲", title)
+            }
+            
+            var new_column table.Column
+            if (column.IsFlex()) {
+                new_column = table.NewFlexColumn(column.Key(), title, column.FlexFactor())
+            } else {
+                new_column = table.NewColumn(column.Key(), title, column.Width())
+            }
+            new_columns[idx] = new_column
+            break
+        }
+    }
+    m.table = m.table.WithColumns(new_columns)
 }
 
 func main() {
