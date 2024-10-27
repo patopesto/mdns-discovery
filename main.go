@@ -135,20 +135,26 @@ type keyMap struct {
 	SortIp       key.Binding
 	SortPort     key.Binding
 
+    Sort       key.Binding // fake key only for description purposes
+    Filter     key.Binding
+
 	Help key.Binding
 	Quit key.Binding
 }
 
 func (k keyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Help, k.Quit}
+	return []key.Binding{k.Help, k.Sort, k.Filter, k.Quit}
 }
 
 func (k keyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
-		{k.Up, k.Down, k.Left, k.Right},                           // first column
-		{k.SortName, k.SortService, k.SortDomain, k.SortHostname}, // second column
-		{k.SortIp, k.SortPort},                                    // third column
-		{k.Help, k.Quit},                                          // fourth column
+		{k.Up, k.Down},
+        {k.Left, k.Right},
+		{k.SortName, k.SortService,},
+        {k.SortDomain, k.SortHostname},
+		{k.SortIp, k.SortPort},
+        {k.Filter},
+		{k.Help, k.Quit},
 	}
 }
 
@@ -170,12 +176,6 @@ type Model struct {
 }
 
 func NewModel() Model {
-	// keys := table.DefaultKeyMap()
-	// keys.RowDown.SetKeys("j", "down", "s")
-	// keys.RowDown.SetHelp("↓/j/s", "move down")
-	// keys.RowUp.SetKeys("k", "up", "w")
-	// keys.RowUp.SetHelp("↑/k/w", "move up")
-
 	keys := keyMap{
 		Up: key.NewBinding(
 			key.WithKeys("up", "k"),
@@ -217,6 +217,14 @@ func NewModel() Model {
 			key.WithKeys("6"),
 			key.WithHelp("6", "sort by port "),
 		),
+        Sort: key.NewBinding(
+            key.WithKeys(""),
+            key.WithHelp("[1-6]", "sort"),
+        ),
+        Filter: key.NewBinding(
+            key.WithKeys("/"),
+            key.WithHelp("/", "filter"),
+        ),
 		Help: key.NewBinding(
 			key.WithKeys("?"),
 			key.WithHelp("?", "toggle help"),
@@ -228,31 +236,37 @@ func NewModel() Model {
 	}
 
 	columns := []table.Column{
-		table.NewColumn("name", "Name", 50),
-		// This table uses flex columns, but it will still need a target
-		// width in order to know what width it should fill.  In this example
-		// the target width is set below in `recalculateTable`, which sets
-		// the table to the width of the screen to demonstrate resizing
-		// with flex columns.
-		table.NewFlexColumn("service", "Service", 6),
-		table.NewFlexColumn("domain", "Domain", 1),
-		table.NewFlexColumn("hostname", "Hostname", 8),
-		table.NewFlexColumn("ip", "IP", 3),
-		table.NewFlexColumn("port", "Port", 1),
+		table.NewColumn("name", "Name", 50).WithFiltered(true),
+		table.NewFlexColumn("service", "Service", 6).WithFiltered(true),
+		table.NewFlexColumn("domain", "Domain", 1).WithFiltered(true),
+		table.NewFlexColumn("hostname", "Hostname", 8).WithFiltered(true),
+		table.NewFlexColumn("ip", "IP", 3).WithFiltered(true),
+		table.NewFlexColumn("port", "Port", 1).WithFiltered(true),
 		table.NewFlexColumn("info", "Info", 8),
 	}
 
 	table := table.New(columns).
 		Focused(true).
+        Filtered(true).
 		// WithKeyMap(keys).
 		// WithStaticFooter("A footer!").
 		WithBaseStyle(tableBaseStyle).
 		HeaderStyle(tableHeaderStyle)
 
+    help := help.New()
+    help.ShortSeparator = "  •  "
+    keyStyle := lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{
+        Light: "#909090",
+        // Dark:  "#a0a0a0",
+        Dark:  "204",
+    })
+    help.Styles.ShortKey = keyStyle
+    help.Styles.FullKey = keyStyle
+
 	return Model{
 		table:   table,
 		columns: columns,
-		help:    help.New(),
+		help:    help,
 		keys:    keys,
 	}
 }
@@ -352,7 +366,7 @@ var tableBaseStyle = lipgloss.NewStyle().
     Align(lipgloss.Left)
 
 var tableHeaderStyle = lipgloss.NewStyle().
-    Foreground(lipgloss.Color("213")).
+    Foreground(lipgloss.Color("203")).
     Bold(true).
     Align(lipgloss.Center)
 

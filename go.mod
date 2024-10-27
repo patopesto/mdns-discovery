@@ -3,9 +3,9 @@ module gitlab.com/patopest/mdns-discovery
 go 1.23.2
 
 require (
-	github.com/charmbracelet/bubbles v0.20.0
+	github.com/charmbracelet/bubbles v0.20.1-0.20241024200107-6f3d765c591a
 	github.com/charmbracelet/bubbletea v1.1.2
-	github.com/charmbracelet/lipgloss v0.13.0
+	github.com/charmbracelet/lipgloss v0.13.1
 	github.com/hashicorp/mdns v1.0.5
 )
 
