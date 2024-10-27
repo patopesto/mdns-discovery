@@ -7,13 +7,14 @@ import (
 	"net"
 	"os"
 	"reflect"
-	// "strconv"
+	"slices"
 	"strings"
-    "slices"
 	"time"
 
 	"github.com/hashicorp/mdns"
 
+	"github.com/charmbracelet/bubbles/help"
+	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	// "github.com/charmbracelet/bubbles/table"
@@ -115,42 +116,53 @@ func (d *Discovery) Run() {
 
 }
 
-var baseStyle = lipgloss.NewStyle().
-	BorderStyle(lipgloss.NormalBorder()).
-	BorderForeground(lipgloss.Color("240")).
-	Align(lipgloss.Left)
-
-var headerStyle = lipgloss.NewStyle().
-	Foreground(lipgloss.Color("213")).
-	Bold(true).
-	Align(lipgloss.Center)
-
-const (
-	minWidth  = 30
-	minHeight = 8
-
-	// Add a fixed margin to account for description & instructions
-	fixedVerticalMargin = 4
-)
-
 const (
 	SortedNone int = iota
 	SortedAsc
 	SortedDesc
 )
 
+type keyMap struct {
+	Up    key.Binding
+	Down  key.Binding
+	Left  key.Binding
+	Right key.Binding
+
+	SortName     key.Binding
+	SortService  key.Binding
+	SortDomain   key.Binding
+	SortHostname key.Binding
+	SortIp       key.Binding
+	SortPort     key.Binding
+
+	Help key.Binding
+	Quit key.Binding
+}
+
+func (k keyMap) ShortHelp() []key.Binding {
+	return []key.Binding{k.Help, k.Quit}
+}
+
+func (k keyMap) FullHelp() [][]key.Binding {
+	return [][]key.Binding{
+		{k.Up, k.Down, k.Left, k.Right},                           // first column
+		{k.SortName, k.SortService, k.SortDomain, k.SortHostname}, // second column
+		{k.SortIp, k.SortPort},                                    // third column
+		{k.Help, k.Quit},                                          // fourth column
+	}
+}
+
 type Model struct {
-	table table.Model
-    columns []table.Column
-	data  []mdns.ServiceEntry
+	table   table.Model
+	columns []table.Column
+	data    []mdns.ServiceEntry
+
+	keys keyMap // Our own keymap to use the help interface
+	help help.Model
 
 	// Window dimensions
 	totalWidth  int
 	totalHeight int
-
-	// Table dimensions
-	horizontalMargin int
-	verticalMargin   int
 
 	// Sorting
 	sortedColumnKey string
@@ -158,36 +170,90 @@ type Model struct {
 }
 
 func NewModel() Model {
-	keys := table.DefaultKeyMap()
-	keys.RowDown.SetKeys("j", "down", "s")
-	keys.RowUp.SetKeys("k", "up", "w")
+	// keys := table.DefaultKeyMap()
+	// keys.RowDown.SetKeys("j", "down", "s")
+	// keys.RowDown.SetHelp("↓/j/s", "move down")
+	// keys.RowUp.SetKeys("k", "up", "w")
+	// keys.RowUp.SetHelp("↑/k/w", "move up")
 
-    columns := []table.Column{
-        table.NewColumn("name", "Name", 50),
-        // This table uses flex columns, but it will still need a target
-        // width in order to know what width it should fill.  In this example
-        // the target width is set below in `recalculateTable`, which sets
-        // the table to the width of the screen to demonstrate resizing
-        // with flex columns.
-        table.NewFlexColumn("service", "Service", 6),
-        table.NewFlexColumn("domain", "Domain", 1),
-        table.NewFlexColumn("hostname", "Hostname", 8),
-        table.NewFlexColumn("ip", "IP", 3),
-        table.NewFlexColumn("port", "Port", 1),
-        table.NewFlexColumn("info", "Info", 8),
-    }
+	keys := keyMap{
+		Up: key.NewBinding(
+			key.WithKeys("up", "k"),
+			key.WithHelp("↑/k", "move up"),
+		),
+		Down: key.NewBinding(
+			key.WithKeys("down", "j"),
+			key.WithHelp("↓/j", "move down"),
+		),
+		Left: key.NewBinding(
+			key.WithKeys("left", "h"),
+			key.WithHelp("←/h", "move left"),
+		),
+		Right: key.NewBinding(
+			key.WithKeys("right", "l"),
+			key.WithHelp("→/l", "move right"),
+		),
+		SortName: key.NewBinding(
+			key.WithKeys("1"),
+			key.WithHelp("1", "sort by name"),
+		),
+		SortService: key.NewBinding(
+			key.WithKeys("2"),
+			key.WithHelp("2", "sort by service"),
+		),
+		SortDomain: key.NewBinding(
+			key.WithKeys("3"),
+			key.WithHelp("3", "sort by domain"),
+		),
+		SortHostname: key.NewBinding(
+			key.WithKeys("4"),
+			key.WithHelp("4", "sort by hostname"),
+		),
+		SortIp: key.NewBinding(
+			key.WithKeys("5"),
+			key.WithHelp("5", "sort by ip"),
+		),
+		SortPort: key.NewBinding(
+			key.WithKeys("6"),
+			key.WithHelp("6", "sort by port "),
+		),
+		Help: key.NewBinding(
+			key.WithKeys("?"),
+			key.WithHelp("?", "toggle help"),
+		),
+		Quit: key.NewBinding(
+			key.WithKeys("q", "esc", "ctrl+c"),
+			key.WithHelp("q", "quit"),
+		),
+	}
+
+	columns := []table.Column{
+		table.NewColumn("name", "Name", 50),
+		// This table uses flex columns, but it will still need a target
+		// width in order to know what width it should fill.  In this example
+		// the target width is set below in `recalculateTable`, which sets
+		// the table to the width of the screen to demonstrate resizing
+		// with flex columns.
+		table.NewFlexColumn("service", "Service", 6),
+		table.NewFlexColumn("domain", "Domain", 1),
+		table.NewFlexColumn("hostname", "Hostname", 8),
+		table.NewFlexColumn("ip", "IP", 3),
+		table.NewFlexColumn("port", "Port", 1),
+		table.NewFlexColumn("info", "Info", 8),
+	}
 
 	table := table.New(columns).
-		// SelectableRows(true).
 		Focused(true).
-		WithKeyMap(keys).
-		WithStaticFooter("A footer!").
-		WithBaseStyle(baseStyle).
-		HeaderStyle(headerStyle)
+		// WithKeyMap(keys).
+		// WithStaticFooter("A footer!").
+		WithBaseStyle(tableBaseStyle).
+		HeaderStyle(tableHeaderStyle)
 
 	return Model{
-		table: table,
-        columns: columns,
+		table:   table,
+		columns: columns,
+		help:    help.New(),
+		keys:    keys,
 	}
 }
 
@@ -239,48 +305,86 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.totalWidth = msg.Width
 		m.totalHeight = msg.Height
-		m.recalculateTable()
+        m.table = m.table.WithTargetWidth(msg.Width)
+        m.help.Width = msg.Width
 
 	case tea.KeyMsg:
-		switch msg.String() {
-		case "q", "ctrl+c", "esc":
-			cmds = append(cmds, tea.Quit)
-		case "1":
-            m.sortedColumnKey = "name"
-            m.sortedDirection += 1
-            m.sort()
-        case "2":
-            m.sortedColumnKey = "service"
-            m.sortedDirection += 1
-            m.sort()
-        case "3":
-            m.sortedColumnKey = "domain"
-            m.sortedDirection += 1
-            m.sort()
-        case "4":
-            m.sortedColumnKey = "hostname"
-            m.sortedDirection += 1
-            m.sort()
-        case "5":
-            m.sortedColumnKey = "ip"
-            m.sortedDirection += 1
-            m.sort()
-        case "6":
-            m.sortedColumnKey = "port"
-            m.sortedDirection += 1
-            m.sort()
-			// case "enter":
-			// 	return m, tea.Batch(
-			// 		tea.Printf("Let's go to %s!", m.table.SelectedRow()[1]),
-			// 	)
-        }
+		switch {
+		case key.Matches(msg, m.keys.SortName):
+			m.sortedColumnKey = "name"
+			m.sortedDirection += 1
+			m.sort()
+		case key.Matches(msg, m.keys.SortService):
+			m.sortedColumnKey = "service"
+			m.sortedDirection += 1
+			m.sort()
+		case key.Matches(msg, m.keys.SortDomain):
+			m.sortedColumnKey = "domain"
+			m.sortedDirection += 1
+			m.sort()
+		case key.Matches(msg, m.keys.SortHostname):
+			m.sortedColumnKey = "hostname"
+			m.sortedDirection += 1
+			m.sort()
+		case key.Matches(msg, m.keys.SortIp):
+			m.sortedColumnKey = "ip"
+			m.sortedDirection += 1
+			m.sort()
+		case key.Matches(msg, m.keys.SortPort):
+			m.sortedColumnKey = "port"
+			m.sortedDirection += 1
+			m.sort()
+		case key.Matches(msg, m.keys.Help):
+			m.help.ShowAll = !m.help.ShowAll
+        case key.Matches(msg, m.keys.Quit):
+            cmds = append(cmds, tea.Quit)
+		}
 	}
 
 	return m, tea.Batch(cmds...)
 }
 
+// Styles
+// Table
+var tableBaseStyle = lipgloss.NewStyle().
+    BorderStyle(lipgloss.NormalBorder()).
+    BorderForeground(lipgloss.Color("240")).
+    Align(lipgloss.Left)
+
+var tableHeaderStyle = lipgloss.NewStyle().
+    Foreground(lipgloss.Color("213")).
+    Bold(true).
+    Align(lipgloss.Center)
+
+// Window
+var topStyle = lipgloss.NewStyle().Padding(1, 3).
+    Bold(true).
+    Foreground(lipgloss.Color("202"))
+
+var tableStyle = lipgloss.NewStyle()
+
+var helpStyle = lipgloss.NewStyle().Padding(1, 2)
+
 func (m Model) View() string {
-	return m.table.View()
+    topStr := strings.Builder{}
+    topStr.WriteString("mDNS Discovery\n")
+
+    topBlock := topStyle.Render(topStr.String())
+    helpBlock :=  helpStyle.Render(m.help.View(m.keys))
+
+    // Compute heights to send to table
+    topHeight := lipgloss.Height(topBlock)
+    helpHeight := lipgloss.Height(helpBlock)
+    tableHeight := m.totalHeight - topHeight - helpHeight
+    m.table = m.table.WithMinimumHeight(tableHeight)
+
+    view := lipgloss.JoinVertical(
+        lipgloss.Left,
+        topBlock,
+        tableStyle.Render(m.table.View()),
+        helpBlock,
+    )
+    return lipgloss.NewStyle().Render(view)
 }
 
 func generateRowsFromData(data []mdns.ServiceEntry) []table.Row {
@@ -293,8 +397,8 @@ func generateRowsFromData(data []mdns.ServiceEntry) []table.Row {
 			"service":  strings.Join(name[1:len(name)-2], "."),
 			"domain":   name[len(name)-2],
 			"hostname": entry.Host,
-            "ip":       entry.AddrV4,
-            "port":     entry.Port,
+			"ip":       entry.AddrV4,
+			"port":     entry.Port,
 			"info":     entry.Info,
 		})
 
@@ -304,50 +408,38 @@ func generateRowsFromData(data []mdns.ServiceEntry) []table.Row {
 	return rows
 }
 
-func (m *Model) recalculateTable() {
-	m.table = m.table.WithTargetWidth(m.calculateWidth()).WithMinimumHeight(m.calculateHeight())
-}
-
-func (m Model) calculateWidth() int {
-	return m.totalWidth - m.horizontalMargin
-}
-
-func (m Model) calculateHeight() int {
-	return m.totalHeight - m.verticalMargin - fixedVerticalMargin
-}
-
 func (m *Model) sort() {
-    if m.sortedDirection == SortedAsc {
-        m.table = m.table.SortByAsc(m.sortedColumnKey)
-    } else if m.sortedDirection == SortedDesc {
-        m.table = m.table.SortByDesc(m.sortedColumnKey)
-    } else {
-        m.sortedDirection = SortedNone
-        m.table = m.table.SortByAsc("") // trick to reset sorting
-    }
+	if m.sortedDirection == SortedAsc {
+		m.table = m.table.SortByAsc(m.sortedColumnKey)
+	} else if m.sortedDirection == SortedDesc {
+		m.table = m.table.SortByDesc(m.sortedColumnKey)
+	} else {
+		m.sortedDirection = SortedNone
+		m.table = m.table.SortByAsc("") // trick to reset sorting
+	}
 
-    // Update column header
-    new_columns := slices.Clone(m.columns)
-    for idx, column := range m.columns {
-        if column.Key() == m.sortedColumnKey {
-            title := column.Title()
-            if m.sortedDirection == SortedAsc {
-                title = fmt.Sprintf("%s ▼", title)
-            } else if ( m.sortedDirection == SortedDesc) {
-                title = fmt.Sprintf("%s ▲", title)
-            }
-            
-            var new_column table.Column
-            if (column.IsFlex()) {
-                new_column = table.NewFlexColumn(column.Key(), title, column.FlexFactor())
-            } else {
-                new_column = table.NewColumn(column.Key(), title, column.Width())
-            }
-            new_columns[idx] = new_column
-            break
-        }
-    }
-    m.table = m.table.WithColumns(new_columns)
+	// Update column header
+	new_columns := slices.Clone(m.columns)
+	for idx, column := range m.columns {
+		if column.Key() == m.sortedColumnKey {
+			title := column.Title()
+			if m.sortedDirection == SortedAsc {
+				title = fmt.Sprintf("%s ▼", title)
+			} else if m.sortedDirection == SortedDesc {
+				title = fmt.Sprintf("%s ▲", title)
+			}
+
+			var new_column table.Column
+			if column.IsFlex() {
+				new_column = table.NewFlexColumn(column.Key(), title, column.FlexFactor())
+			} else {
+				new_column = table.NewColumn(column.Key(), title, column.Width())
+			}
+			new_columns[idx] = new_column
+			break
+		}
+	}
+	m.table = m.table.WithColumns(new_columns)
 }
 
 func main() {
