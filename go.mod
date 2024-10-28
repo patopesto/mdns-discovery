@@ -6,7 +6,9 @@ require (
 	github.com/charmbracelet/bubbles v0.20.1-0.20241024200107-6f3d765c591a
 	github.com/charmbracelet/bubbletea v1.1.2
 	github.com/charmbracelet/lipgloss v0.13.1
+	github.com/evertras/bubble-table v0.17.0
 	github.com/hashicorp/mdns v1.0.5
+	github.com/spf13/pflag v1.0.5
 )
 
 require (
@@ -15,7 +17,6 @@ require (
 	github.com/charmbracelet/x/ansi v0.4.0 // indirect
 	github.com/charmbracelet/x/term v0.2.0 // indirect
 	github.com/erikgeiser/coninput v0.0.0-20211004153227-1c3628e74d0f // indirect
-	github.com/evertras/bubble-table v0.17.0 // indirect
 	github.com/lucasb-eyer/go-colorful v1.2.0 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mattn/go-localereader v0.0.1 // indirect

@@ -2,11 +2,14 @@ package main
 
 import (
 	"fmt"
+	// "log"
 	"os"
 	"reflect"
 	"slices"
 	"strings"
 	"time"
+
+	flag "github.com/spf13/pflag"
 
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
@@ -50,9 +53,9 @@ func (k keyMap) ShortHelp() []key.Binding {
 
 func (k keyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
-		{k.Up, k.Down},
-		{k.Left, k.Right},
-		{k.SortName, k.SortService},
+		{k.Up, k.Down},              // first column
+		{k.Left, k.Right},           // second column
+		{k.SortName, k.SortService}, // ...
 		{k.SortDomain, k.SortHostname},
 		{k.SortIp, k.SortPort},
 		{k.Filter},
@@ -132,7 +135,7 @@ func NewModel() Model {
 			key.WithHelp("?", "toggle help"),
 		),
 		Quit: key.NewBinding(
-			key.WithKeys("q", "esc", "ctrl+c"),
+			key.WithKeys("q", "ctrl+c"),
 			key.WithHelp("q", "quit"),
 		),
 	}
@@ -150,8 +153,6 @@ func NewModel() Model {
 	table := table.New(columns).
 		Focused(true).
 		Filtered(true).
-		// WithKeyMap(keys).
-		// WithStaticFooter("A footer!").
 		WithBaseStyle(tableBaseStyle).
 		HeaderStyle(tableHeaderStyle).
 		HighlightStyle(tableHighlightedRowStyle)
@@ -368,8 +369,26 @@ func (m Model) View() string {
 }
 
 /* ----- Entrypoint ----- */
+
+var ifaces = flag.StringSliceP("interface", "i", nil, "Use specified interface(s). ex: '-i eth0,wlan0' (default: all available interfaces)")
+var doms = flag.StringSliceP("domain", "d", []string{DEFAULT_DOMAIN}, "Domain(s) to use, usually '.local' \t\t!!! Do no t change unless you know what you're doing !!!")
+var info = flag.BoolP("version", "v", false, "Print version info")
+var usage = flag.BoolP("help", "h", false, "Print this help message")
+
 func main() {
-	InitDiscovery()
+	flag.CommandLine.SortFlags = false
+	flag.Parse()
+
+	if *info {
+		PrintInfo()
+		os.Exit(0)
+	}
+	if *usage {
+		flag.Usage()
+		os.Exit(0)
+	}
+
+	InitDiscovery(*ifaces, *doms)
 
 	m := NewModel()
 

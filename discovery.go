@@ -17,6 +17,7 @@ const (
 	// Used to query all peers for their services
 	// https://github.com/libp2p/specs/blob/master/discovery/mdns.md#dns-service-discovery
 	MDNS_META_QUERY = "_services._dns-sd._udp"
+	DEFAULT_DOMAIN  = "local"
 )
 
 type ServiceEntry = mdns.ServiceEntry // type alias
@@ -31,21 +32,30 @@ type Discovery struct {
 
 var discoveries []*Discovery
 var interfaces []*net.Interface
+var domains []string
 var discoveryLogger *log.Logger
 
-func InitDiscovery() {
+func InitDiscovery(ifaces []string, domains []string) {
+
+	if len(ifaces) == 0 {
+		interfaces = GetInterfaces()
+	} else {
+		interfaces = GetInterfacesByName(ifaces)
+	}
+	domains = domains
 	discoveries = make([]*Discovery, 0)
 	discoveryLogger = log.New(ioutil.Discard, "", 0)
 
-	interfaces = GetInterfaces()
 	for _, itf := range interfaces {
-		discovery := NewDiscovery(MDNS_META_QUERY, itf)
-		discoveries = append(discoveries, discovery)
-		discovery.Start()
+		for _, domain := range domains {
+			discovery := NewDiscovery(MDNS_META_QUERY, domain, itf)
+			discoveries = append(discoveries, discovery)
+			discovery.Start()
+		}
 	}
 }
 
-func NewDiscovery(service string, iface *net.Interface) *Discovery {
+func NewDiscovery(service string, domain string, iface *net.Interface) *Discovery {
 	entriesCh := make(chan *mdns.ServiceEntry, 10)
 	entries := make([]ServiceEntry, 0)
 	return &Discovery{
@@ -53,7 +63,7 @@ func NewDiscovery(service string, iface *net.Interface) *Discovery {
 		entriesCh: entriesCh,
 		Params: &mdns.QueryParam{
 			Service:             service,
-			Domain:              "local",
+			Domain:              domain,
 			Timeout:             QUERY_TIMEOUT * time.Second,
 			Entries:             entriesCh,
 			Interface:           iface,

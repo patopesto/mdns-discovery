@@ -32,3 +32,10 @@ go run . <flags>
 go build
 ```
 
+
+## References
+- [mDNS wikipedia](https://en.wikipedia.org/wiki/Multicast_DNS) and [go library](https://github.com/hashicorp/mdns)
+- [Bubble Tea](https://github.com/charmbracelet/bubbletea): TUI Framework
+- [Bubbles](https://github.com/charmbracelet/bubbles): TUI Components for Bubble Tea
+- [Lipgloss](https://github.com/charmbracelet/lipgloss): Styling
+- [Bubble-table](https://github.com/Evertras/bubble-table): Table componenent for Bubble Tea

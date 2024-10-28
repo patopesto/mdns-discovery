@@ -51,3 +51,23 @@ func GetInterfaces() []*net.Interface {
 
 	return itfs
 }
+
+func GetInterfacesByName(ifaces []string) []*net.Interface {
+
+	itfs := make([]*net.Interface, 0)
+
+	for _, iface := range ifaces {
+		itf, err := net.InterfaceByName(iface)
+		if err != nil {
+			continue
+		}
+		itfs = append(itfs, itf)
+	}
+
+	// log.Println("Interfaces found:")
+	// for _, itf := range itfs {
+	//     log.Println(itf)
+	// }
+
+	return itfs
+}
