@@ -1,6 +1,6 @@
 module gitlab.com/patopest/mdns-discovery
 
-go 1.23.2
+go 1.23.1
 
 require (
 	github.com/charmbracelet/bubbles v0.20.1-0.20241024200107-6f3d765c591a
