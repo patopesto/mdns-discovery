@@ -35,4 +35,4 @@ require (
 	golang.org/x/tools v0.26.0 // indirect
 )
 
-replace github.com/hashicorp/mdns => ../mdns
+replace github.com/hashicorp/mdns => github.com/patopesto/mdns v0.0.0-20241028014104-e37101a3e164
