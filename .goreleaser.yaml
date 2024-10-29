@@ -43,6 +43,8 @@ changelog:
     exclude:
       - "^docs:"
       - "^test:"
+      - "^CI:"
+      - "^ci:"
 
 # release:
 #   # Add github manually

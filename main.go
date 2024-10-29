@@ -141,7 +141,7 @@ func NewModel() Model {
 	}
 
 	columns := []table.Column{
-		table.NewColumn("name", "Name", 50).WithFiltered(true),
+		table.NewFlexColumn("name", "Name", 8).WithFiltered(true),
 		table.NewFlexColumn("service", "Service", 6).WithFiltered(true),
 		table.NewFlexColumn("domain", "Domain", 1).WithFiltered(true),
 		table.NewFlexColumn("hostname", "Hostname", 8).WithFiltered(true),
@@ -374,9 +374,11 @@ var ifaces = flag.StringSliceP("interface", "i", nil, "Use specified interface(s
 var doms = flag.StringSliceP("domain", "d", []string{DEFAULT_DOMAIN}, "Domain(s) to use, usually '.local' \t\t!!! Do no t change unless you know what you're doing !!!")
 var info = flag.BoolP("version", "v", false, "Print version info")
 var usage = flag.BoolP("help", "h", false, "Print this help message")
+var fake = flag.Bool("fake", true, "Use fake data instead")
 
 func main() {
 	flag.CommandLine.SortFlags = false
+    flag.CommandLine.MarkHidden("fake")
 	flag.Parse()
 
 	if *info {
@@ -388,9 +390,15 @@ func main() {
 		os.Exit(0)
 	}
 
-	InitDiscovery(*ifaces, *doms)
+    m := NewModel()
 
-	m := NewModel()
+    if *fake { // fake data for demo purposes
+        InitDiscovery(nil, []string{"test.com"})
+        m.data = fakeData
+        m.table = m.table.WithRows(generateRowsFromData(fakeData))
+    } else {
+        InitDiscovery(*ifaces, *doms)
+    }
 
 	p := tea.NewProgram(m, tea.WithAltScreen())
 	if _, err := p.Run(); err != nil {
