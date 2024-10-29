@@ -1,7 +1,25 @@
 # mDNS Discovery
 
-A small TUI app to discover mDNS/Zeroconf/Bonjour services and devices on your network.
+A small TUI app to discover mDNS/Zeroconf/Bonjour services and devices on your network.  
 Built in go and using [charm.sh](https://charm.sh/) libraries.
+
+
+![App gif](assets/demo.gif "")
+
+
+
+## Install
+
+### Manually
+
+Precompiled binaries for your platform can be found on the [Releases](https://gitlab.com/patopest/mdns-discovery/-/releases) page.
+
+### Homebrew
+
+```shell
+brew install patopesto/tap/mdns-discovery
+```
+
 
 
 ## Usage
