@@ -374,7 +374,7 @@ var ifaces = flag.StringSliceP("interface", "i", nil, "Use specified interface(s
 var doms = flag.StringSliceP("domain", "d", []string{DEFAULT_DOMAIN}, "Domain(s) to use, usually '.local' \t\t!!! Do no t change unless you know what you're doing !!!")
 var info = flag.BoolP("version", "v", false, "Print version info")
 var usage = flag.BoolP("help", "h", false, "Print this help message")
-var fake = flag.Bool("fake", true, "Use fake data instead")
+var fake = flag.Bool("fake", false, "Use fake data instead")
 
 func main() {
 	flag.CommandLine.SortFlags = false
