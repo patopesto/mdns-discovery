@@ -2,8 +2,8 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"io"
+	"log"
 	"os"
 	"reflect"
 	"slices"
@@ -142,13 +142,13 @@ func NewModel() *Model {
 	}
 
 	columns := []table.Column{
-		table.NewFlexColumn("name", "Name", 8).WithFiltered(true),
-		table.NewFlexColumn("service", "Service", 6).WithFiltered(true),
-		table.NewFlexColumn("domain", "Domain", 1).WithFiltered(true),
-		table.NewFlexColumn("hostname", "Hostname", 8).WithFiltered(true),
-		table.NewFlexColumn("ip", "IP", 3).WithFiltered(true),
-		table.NewFlexColumn("port", "Port", 1).WithFiltered(true),
-		table.NewFlexColumn("info", "Info", 8),
+		table.NewFlexColumn("name", "Name", 20).WithFiltered(true),
+		table.NewFlexColumn("service", "Service", 18).WithFiltered(true),
+		table.NewFlexColumn("domain", "Domain", 6).WithFiltered(true),
+		table.NewFlexColumn("hostname", "Hostname", 18).WithFiltered(true),
+		table.NewColumn("ip", "IP", 15).WithFiltered(true),
+		table.NewColumn("port", "Port", 6).WithFiltered(true),
+		table.NewFlexColumn("info", "Info", 20).WithFiltered(true),
 	}
 
 	table := table.New(columns).
@@ -252,26 +252,43 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.help.ShowAll = !m.help.ShowAll
 		case key.Matches(msg, m.keys.Quit):
 			cmds = append(cmds, tea.Quit)
-		default:
-			// Check if cursor moved off visible page and sync pagination
-			if userEvents := m.table.GetLastUpdateUserEvents(); len(userEvents) > 0 {
-				for _, evt := range userEvents {
-					if _, ok := evt.(table.UserEventHighlightedIndexChanged); ok {
-						// Cursor moved - ensure pagination follows
-						highlightedIdx := m.table.GetHighlightedRowIndex()
-						pageSize := m.table.PageSize()
-						currentPage := m.table.CurrentPage()
-						newPage := highlightedIdx / pageSize + 1
-						if newPage != currentPage {
-							m.table = m.table.WithCurrentPage(newPage)
-						}
-					}
-				}
-			}
 		}
 	}
 
 	return m, tea.Batch(cmds...)
+}
+
+// Fix for escaped characters or ascii binary characters as "\123"
+// https://github.com/miekg/dns/issues/1607
+func unescapeString(s string) string {
+	var buf strings.Builder
+	for i := 0; i < len(s); i++ {
+		if s[i] == '\\' && i+1 < len(s) {
+			next := s[i+1]
+			// Check if next char is a digit (for decimal byte values)
+			if next >= '0' && next <= '9' {
+				start := i + 1
+				end := start
+				for end < len(s) && s[end] >= '0' && s[end] <= '9' {
+					end++
+				}
+				// Parse decimal value and convert to byte
+				val := 0
+				for j := start; j < end; j++ {
+					val = val*10 + int(s[j]-'0')
+				}
+				buf.WriteByte(byte(val))
+				i = end - 1
+			} else {
+				// Any other escaped character - output it literally
+				buf.WriteByte(next)
+				i++
+			}
+		} else {
+			buf.WriteByte(s[i])
+		}
+	}
+	return buf.String()
 }
 
 func generateRowsFromData(data []ServiceEntry) []table.Row {
@@ -280,13 +297,13 @@ func generateRowsFromData(data []ServiceEntry) []table.Row {
 	for _, entry := range data {
 		name := strings.Split(entry.Name, ".")
 		row := table.NewRow(table.RowData{
-			"name":     fmt.Sprintf("%s", name[0]),
+			"name":     unescapeString(name[0]),
 			"service":  strings.Join(name[1:len(name)-2], "."),
 			"domain":   name[len(name)-2],
 			"hostname": entry.Host,
 			"ip":       entry.AddrV4,
 			"port":     entry.Port,
-			"info":     entry.Info,
+			"info":     unescapeString(entry.Info),
 		})
 
 		rows = append(rows, row)
