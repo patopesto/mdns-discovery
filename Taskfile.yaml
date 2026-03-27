@@ -1,0 +1,18 @@
+# https://taskfile.dev/
+
+version: '3'
+
+tasks:
+  run:
+    desc: "Run the app"
+    cmd: go run . --debug {{ .CLI_ARGS }}
+  
+  run:fake:
+    desc: "Run the app with fake data"
+    cmds:
+      - task: run
+        vars: { CLI_ARGS: '--fake {{ .CLI_ARGS }}'}
+
+  debug:
+    desc: "Watch debug log file"
+    cmd: tail -f debug.log
