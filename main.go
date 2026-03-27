@@ -378,7 +378,7 @@ var fake = flag.Bool("fake", false, "Use fake data instead")
 
 func main() {
 	flag.CommandLine.SortFlags = false
-    flag.CommandLine.MarkHidden("fake")
+	flag.CommandLine.MarkHidden("fake")
 	flag.Parse()
 
 	if *info {
@@ -390,15 +390,15 @@ func main() {
 		os.Exit(0)
 	}
 
-    m := NewModel()
+	m := NewModel()
 
-    if *fake { // fake data for demo purposes
-        InitDiscovery(nil, []string{"test.com"})
-        m.data = fakeData
-        m.table = m.table.WithRows(generateRowsFromData(fakeData))
-    } else {
-        InitDiscovery(*ifaces, *doms)
-    }
+	if *fake { // fake data for demo purposes
+		InitDiscovery(nil, []string{"test.com"})
+		m.data = fakeData
+		m.table = m.table.WithRows(generateRowsFromData(fakeData))
+	} else {
+		InitDiscovery(*ifaces, *doms)
+	}
 
 	p := tea.NewProgram(m, tea.WithAltScreen())
 	if _, err := p.Run(); err != nil {
