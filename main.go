@@ -81,7 +81,7 @@ type Model struct {
 	sortedDirection int
 }
 
-func NewModel() Model {
+func NewModel() *Model {
 	keys := keyMap{
 		Up: key.NewBinding(
 			key.WithKeys("up", "k"),
@@ -163,7 +163,7 @@ func NewModel() Model {
 	help.Styles.ShortKey = helpKeyStyle
 	help.Styles.FullKey = helpKeyStyle
 
-	return Model{
+	return &Model{
 		table:   table,
 		columns: columns,
 		help:    help,
@@ -185,11 +185,11 @@ func tickEvery() tea.Cmd {
 	})
 }
 
-func (m Model) Init() tea.Cmd {
+func (m *Model) Init() tea.Cmd {
 	return tea.Batch(tea.SetWindowTitle("mDNS Discovery"), tickEvery())
 }
 
-func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 	var cmds []tea.Cmd
 
@@ -252,6 +252,22 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.help.ShowAll = !m.help.ShowAll
 		case key.Matches(msg, m.keys.Quit):
 			cmds = append(cmds, tea.Quit)
+		default:
+			// Check if cursor moved off visible page and sync pagination
+			if userEvents := m.table.GetLastUpdateUserEvents(); len(userEvents) > 0 {
+				for _, evt := range userEvents {
+					if _, ok := evt.(table.UserEventHighlightedIndexChanged); ok {
+						// Cursor moved - ensure pagination follows
+						highlightedIdx := m.table.GetHighlightedRowIndex()
+						pageSize := m.table.PageSize()
+						currentPage := m.table.CurrentPage()
+						newPage := highlightedIdx / pageSize + 1
+						if newPage != currentPage {
+							m.table = m.table.WithCurrentPage(newPage)
+						}
+					}
+				}
+			}
 		}
 	}
 
@@ -347,7 +363,7 @@ var helpKeyStyle = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{
 	Dark: "205",
 })
 
-func (m Model) View() string {
+func (m *Model) View() string {
 	topStr := strings.Builder{}
 	topStr.WriteString("mDNS Discovery\n")
 
@@ -358,7 +374,11 @@ func (m Model) View() string {
 	topHeight := lipgloss.Height(topBlock)
 	helpHeight := lipgloss.Height(helpBlock)
 	tableHeight := m.totalHeight - topHeight - helpHeight
-	m.table = m.table.WithMinimumHeight(tableHeight)
+	pageSize := tableHeight - 6 // magic offset based on current topBlock + tableHeader rendering
+	if pageSize < 1 {
+		pageSize = 1
+	}
+	m.table = m.table.WithMinimumHeight(tableHeight).WithPageSize(pageSize)
 
 	view := lipgloss.JoinVertical(
 		lipgloss.Left,
@@ -410,8 +430,8 @@ func main() {
 
 	if *fake { // fake data for demo purposes
 		InitDiscovery(nil, []string{"test.com"})
-		m.data = fakeData
-		m.table = m.table.WithRows(generateRowsFromData(fakeData))
+		m.data = fakeDataLong
+		m.table = m.table.WithRows(generateRowsFromData(fakeDataLong))
 	} else {
 		InitDiscovery(*ifaces, *doms)
 	}
