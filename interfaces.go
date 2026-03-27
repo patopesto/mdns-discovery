@@ -44,10 +44,10 @@ func GetInterfaces() []*net.Interface {
 		}
 	}
 
-	// log.Println("Interfaces found:")
-	// for _, itf := range itfs {
-	//     log.Println(itf)
-	// }
+	log.Println("Interfaces found:")
+	for _, itf := range itfs {
+	    log.Println(itf)
+	}
 
 	return itfs
 }
@@ -64,10 +64,10 @@ func GetInterfacesByName(ifaces []string) []*net.Interface {
 		itfs = append(itfs, itf)
 	}
 
-	// log.Println("Interfaces found:")
-	// for _, itf := range itfs {
-	//     log.Println(itf)
-	// }
+	log.Println("Interfaces found:")
+	for _, itf := range itfs {
+	    log.Println(itf)
+	}
 
 	return itfs
 }

@@ -2,7 +2,8 @@ package main
 
 import (
 	"fmt"
-	// "log"
+	"log"
+	"io"
 	"os"
 	"reflect"
 	"slices"
@@ -374,12 +375,27 @@ var ifaces = flag.StringSliceP("interface", "i", nil, "Use specified interface(s
 var doms = flag.StringSliceP("domain", "d", []string{DEFAULT_DOMAIN}, "Domain(s) to use, usually '.local' \t\t!!! Do no t change unless you know what you're doing !!!")
 var info = flag.BoolP("version", "v", false, "Print version info")
 var usage = flag.BoolP("help", "h", false, "Print this help message")
+var debugFile = flag.Bool("debug", false, "Write logs to file")
 var fake = flag.Bool("fake", false, "Use fake data instead")
 
 func main() {
 	flag.CommandLine.SortFlags = false
+	flag.CommandLine.MarkHidden("debug")
 	flag.CommandLine.MarkHidden("fake")
 	flag.Parse()
+
+	if *debugFile {
+		f, err := tea.LogToFile("debug.log", "")
+		if err != nil {
+			log.Fatal("fatal:", err)
+			os.Exit(1)
+		}
+		defer f.Close()
+	} else {
+		log.SetOutput(io.Discard)
+	}
+
+	log.Println("Hello! Starting up...")
 
 	if *info {
 		PrintInfo()
