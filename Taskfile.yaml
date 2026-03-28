@@ -3,9 +3,21 @@
 version: '3'
 
 tasks:
+  build:
+    desc: "Build the app"
+    cmds:
+      - go build -o dist/mdns-discovery .
+    sources:
+      - ./*.go
+      - ./**/*.go
+
   run:
     desc: "Run the app"
-    cmd: go run . --debug {{ .CLI_ARGS }}
+    cmds:
+      - task: build
+      - ./dist/mdns-discovery {{ .CLI_ARGS }}
+    watch: false
+    interactive: true
   
   run:fake:
     desc: "Run the app with fake data"
@@ -16,3 +28,7 @@ tasks:
   debug:
     desc: "Watch debug log file"
     cmd: tail -f debug.log
+
+  fmt:
+    desc: "Run Formatting"
+    cmd: go fmt ./...
