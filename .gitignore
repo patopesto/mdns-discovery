@@ -4,6 +4,7 @@
 # debug
 *.log
 
-# Go build output
+# build output
 mdns-discovery
 dist/
+.task

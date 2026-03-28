@@ -1,4 +1,4 @@
-package main
+package network
 
 import (
 	"net"
@@ -6,7 +6,7 @@ import (
 
 // Fake data to populate table
 
-var fakeData = []ServiceEntry{
+var FakeData = []ServiceEntry{
 	{
 		Name:   "Asterix._device_info._tcp._local.",
 		Host:   "Asterix.local.",
@@ -63,10 +63,24 @@ var fakeData = []ServiceEntry{
 		Port:   7000,
 		Info:   "now_plating=TheBlaze-Territory",
 	},
+	{
+		Name:   "Arrierboutix._talos._tcp._local.",
+		Host:   "Arrierboutix.local.",
+		AddrV4: net.IPv4(192, 168, 1, 69),
+		Port:   10657,
+		Info:   "talos=v1.12.4|k8s=v1.35.2",
+	},
+	{
+		Name:   "Ordralfabetix._1password._tcp._local.",
+		Host:   "Ordralfabetix.local.",
+		AddrV4: net.IPv4(192, 168, 1, 252),
+		Port:   7000,
+		Info:   "state=\"plenty of secrets here\"",
+	},
 }
 
 // Extended fake data for testing TUI scrolling
-var fakeDataLong = append(fakeData, []ServiceEntry{
+var FakeDataLong = append(FakeData, []ServiceEntry{
 	{
 		Name:   "Cetautomatix._http._tcp._local.",
 		Host:   "Cetautomatix.local.",
