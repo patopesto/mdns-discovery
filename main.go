@@ -14,8 +14,9 @@ import (
 
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
+	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	lg "github.com/charmbracelet/lipgloss"
 	"github.com/evertras/bubble-table/table"
 )
 
@@ -79,6 +80,9 @@ type Model struct {
 	// Sorting
 	sortedColumnKey string
 	sortedDirection int
+
+	// Spinner
+	spinner spinner.Model
 }
 
 func NewModel() *Model {
@@ -163,11 +167,16 @@ func NewModel() *Model {
 	help.Styles.ShortKey = helpKeyStyle
 	help.Styles.FullKey = helpKeyStyle
 
+	s := spinner.New()
+	s.Spinner = spinner.Dot
+	s.Style = spinnerStyle
+
 	return &Model{
 		table:   table,
 		columns: columns,
 		help:    help,
 		keys:    keys,
+		spinner: s,
 	}
 }
 
@@ -186,7 +195,7 @@ func tickEvery() tea.Cmd {
 }
 
 func (m *Model) Init() tea.Cmd {
-	return tea.Batch(tea.SetWindowTitle("mDNS Discovery"), tickEvery())
+	return tea.Batch(tea.SetWindowTitle("mDNS Discovery"), tickEvery(), m.spinner.Tick)
 }
 
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -194,6 +203,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
 	m.table, cmd = m.table.Update(msg)
+	cmds = append(cmds, cmd)
+
+	m.spinner, cmd = m.spinner.Update(msg)
 	cmds = append(cmds, cmd)
 
 	switch msg := msg.(type) {
@@ -347,69 +359,106 @@ func (m *Model) sort() {
 }
 
 /* ----- Styles ----- */
-// Table
-var tableBaseStyle = lipgloss.NewStyle().
-	BorderStyle(lipgloss.NormalBorder()).
-	BorderForeground(lipgloss.Color("240")).
-	Foreground(lipgloss.Color("252")).
-	Align(lipgloss.Left)
-
-var tableHeaderStyle = lipgloss.NewStyle().
-	Foreground(lipgloss.Color("203")).
-	Bold(true).
-	Align(lipgloss.Center)
-
-var tableHighlightedRowStyle = lipgloss.NewStyle().
-	Bold(true).
-	Background(lipgloss.Color("96")).
-	Foreground(lipgloss.Color("255"))
+// Helpers
+var Style = lg.NewStyle
 
 // Window
-var topStyle = lipgloss.NewStyle().Padding(1, 3, 0).
+// - Header
+var headerStyle = Style().
+	Padding(1, 4, 1, 2)
+
+var titleStyle = Style().
 	Bold(true).
-	Foreground(lipgloss.Color("202"))
+	Foreground(lg.Color("202"))
 
-var tableStyle = lipgloss.NewStyle()
+var spinnerStyle = Style().
+	PaddingRight(2).
+	Foreground(lg.Color("255"))
 
-var helpStyle = lipgloss.NewStyle().Padding(1, 2)
+var interfacesStyle = Style().
+	Foreground(lg.Color("#606060"))
+
+var interfaceStyle = Style().
+	Padding(0, 1).
+	Foreground(lg.Color("202"))
+
+// - Table
+var tableStyle = Style()
+
+var tableBaseStyle = Style().
+	BorderStyle(lg.NormalBorder()).
+	BorderForeground(lg.Color("240")).
+	Foreground(lg.Color("252")).
+	Align(lg.Left)
+
+var tableHeaderStyle = Style().
+	Foreground(lg.Color("203")).
+	Bold(true).
+	Align(lg.Center)
+
+var tableHighlightedRowStyle = Style().
+	Bold(true).
+	Background(lg.Color("96")).
+	Foreground(lg.Color("255"))
+
+// - Footer
+var footerStyle = Style().
+	Padding(1, 2)
 
 // Other
-var helpKeyStyle = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{
-	Light: "#909090",
-	// Dark:  "#a0a0a0",
-	Dark: "205",
-})
+var helpKeyStyle = Style().
+	Foreground(lg.AdaptiveColor{
+		Light: "#909090",
+		Dark:  "205",
+	})
 
 func (m *Model) View() string {
-	topStr := strings.Builder{}
-	topStr.WriteString("mDNS Discovery\n")
+	title := titleStyle.Render("mDNS Discovery")
+	spinner := m.spinner.View()
+	itfs := strings.Builder{}
+	itfs.WriteString("interfaces ")
+	for _, itf := range interfaces {
+		s := interfaceStyle.Render(itf.Name)
+		itfs.WriteString(s)
+	}
+	interfaces := interfacesStyle.Render(itfs.String())
 
-	topBlock := topStyle.Render(topStr.String())
-	helpBlock := helpStyle.Render(m.help.View(m.keys))
+	spacerWidth := m.totalWidth - lg.Width(spinner) - lg.Width(title) - lg.Width(interfaces) - headerStyle.GetHorizontalPadding()
+
+	header := lg.JoinHorizontal(
+		lg.Center,
+		spinner,
+		title,
+		Style().Width(spacerWidth).Render(""),
+		interfaces,
+	)
+
+	headerBlock := headerStyle.Render(header)
+	footerBlock := footerStyle.Render(m.help.View(m.keys))
 
 	// Compute height of all elements to send to table
-	topHeight := lipgloss.Height(topBlock)
-	helpHeight := lipgloss.Height(helpBlock)
+	topHeight := lg.Height(headerBlock)
+	helpHeight := lg.Height(footerBlock)
 	tableHeight := m.totalHeight - topHeight - helpHeight
-	pageSize := tableHeight - 6 // magic offset based on current topBlock + tableHeader rendering
+	pageSize := tableHeight - 6 // magic offset based on current headerBlock + tableHeader rendering
 	if pageSize < 1 {
 		pageSize = 1
 	}
 	m.table = m.table.WithMinimumHeight(tableHeight).WithPageSize(pageSize)
 
-	view := lipgloss.JoinVertical(
-		lipgloss.Left,
-		topBlock,
+	view := lg.JoinVertical(
+		lg.Left,
+		headerBlock,
 		tableStyle.Render(m.table.View()),
-		helpBlock,
+		footerBlock,
 	)
-	return lipgloss.NewStyle().Render(view)
+	return Style().Render(view)
 }
 
 /* ----- Entrypoint ----- */
 
 var ifaces = flag.StringSliceP("interface", "i", nil, "Use specified interface(s). ex: '-i eth0,wlan0' (default: all available interfaces)")
-var doms = flag.StringSliceP("domain", "d", []string{DEFAULT_DOMAIN}, "Domain(s) to use, usually '.local' \t\t!!! Do no t change unless you know what you're doing !!!")
+var doms = flag.StringSliceP("domain", "d", []string{DEFAULT_DOMAIN}, "Domain(s) to use, usually '.local' \t\t!!! Do not change unless you know what you're doing !!!")
 var info = flag.BoolP("version", "v", false, "Print version info")
 var usage = flag.BoolP("help", "h", false, "Print this help message")
 var debugFile = flag.Bool("debug", false, "Write logs to file")
