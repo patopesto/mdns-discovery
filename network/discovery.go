@@ -5,6 +5,7 @@ import (
 	"log"
 	"net"
 	"reflect"
+	"sync"
 	"time"
 
 	"github.com/hashicorp/mdns"
@@ -27,8 +28,9 @@ type Discovery struct {
 	Interfaces []*net.Interface
 	Domains    []string
 
-	services  map[string][]*DiscoveryService
-	EntriesCh chan ServiceEntry // Channel for newly discovered entries
+	services   map[string][]*DiscoveryService
+	servicesMu sync.RWMutex
+	EntriesCh  chan ServiceEntry // Channel for newly discovered entries
 }
 
 func InitDiscovery(ifaces []string, domains []string, entriesCh chan ServiceEntry) Discovery {
@@ -54,6 +56,72 @@ func InitDiscovery(ifaces []string, domains []string, entriesCh chan ServiceEntr
 	}
 
 	return d
+}
+
+// EnableInterface adds an interface to discovery and starts services for it
+func (d *Discovery) EnableInterface(iface *net.Interface) error {
+	d.servicesMu.Lock()
+	defer d.servicesMu.Unlock()
+
+	// Check if already enabled
+	for _, itf := range d.Interfaces {
+		if itf.Name == iface.Name {
+			return nil
+		}
+	}
+
+	d.Interfaces = append(d.Interfaces, iface)
+
+	for _, domain := range d.Domains {
+		service := NewDiscoveryService(MDNS_META_QUERY, domain, iface, d.EntriesCh)
+		d.services[iface.Name] = append(d.services[iface.Name], service)
+		service.Start()
+	}
+
+	return nil
+}
+
+// DisableInterface removes an interface from discovery and stops its services
+func (d *Discovery) DisableInterface(ifaceName string) error {
+	d.servicesMu.Lock()
+	defer d.servicesMu.Unlock()
+
+	// Find and remove from Interfaces slice
+	found := false
+	for i, itf := range d.Interfaces {
+		if itf.Name == ifaceName {
+			d.Interfaces = append(d.Interfaces[:i], d.Interfaces[i+1:]...)
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		return nil
+	}
+
+	// Stop and remove services for this interface
+	if services, ok := d.services[ifaceName]; ok {
+		for _, service := range services {
+			service.Stop()
+		}
+		delete(d.services, ifaceName)
+	}
+
+	return nil
+}
+
+// IsInterfaceEnabled checks if an interface is currently enabled
+func (d *Discovery) IsInterfaceEnabled(ifaceName string) bool {
+	d.servicesMu.RLock()
+	defer d.servicesMu.RUnlock()
+
+	for _, itf := range d.Interfaces {
+		if itf.Name == ifaceName {
+			return true
+		}
+	}
+	return false
 }
 
 // A DiscoveryService queries the network for a single domain on a single interface

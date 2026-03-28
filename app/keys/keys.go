@@ -1,10 +1,10 @@
-package app
+package keys
 
 import (
 	"github.com/charmbracelet/bubbles/key"
 )
 
-type keyMap struct {
+type KeyMap struct {
 	Up    key.Binding
 	Down  key.Binding
 	Left  key.Binding
@@ -20,27 +20,29 @@ type keyMap struct {
 	Sort   key.Binding // fake key only for description purposes (in help)
 	Filter key.Binding
 
+	Settings key.Binding
+
 	Help key.Binding
 	Quit key.Binding
 }
 
-func (k keyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Help, k.Sort, k.Filter, k.Quit}
+func (k KeyMap) ShortHelp() []key.Binding {
+	return []key.Binding{k.Help, k.Sort, k.Filter, k.Settings, k.Quit}
 }
 
-func (k keyMap) FullHelp() [][]key.Binding {
+func (k KeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Up, k.Down},              // first column
 		{k.Left, k.Right},           // second column
 		{k.SortName, k.SortService}, // ...
 		{k.SortDomain, k.SortHostname},
 		{k.SortIp, k.SortPort},
-		{k.Filter},
+		{k.Filter, k.Settings},
 		{k.Help, k.Quit},
 	}
 }
 
-var DefaultKeyMap = keyMap{
+var DefaultKeyMap = KeyMap{
 	Up: key.NewBinding(
 		key.WithKeys("up", "k"),
 		key.WithHelp("↑/k", "move up"),
@@ -88,6 +90,10 @@ var DefaultKeyMap = keyMap{
 	Filter: key.NewBinding(
 		key.WithKeys("/"),
 		key.WithHelp("/", "filter"),
+	),
+	Settings: key.NewBinding(
+		key.WithKeys("s"),
+		key.WithHelp("s", "settings"),
 	),
 	Help: key.NewBinding(
 		key.WithKeys("?"),

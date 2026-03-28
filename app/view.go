@@ -84,26 +84,44 @@ func (m *App) viewHeader() string {
 	return headerStyle.Render(header)
 }
 
+func (m *App) viewFooter() string {
+	var footer string
+	if m.showSettings {
+		footer = m.help.View(m.settings)
+	} else {
+		footer = m.help.View(m.keys)
+	}
+
+	return footerStyle.Render(footer)
+}
+
 // Implement tea.Model interface
 func (m *App) View() string {
-
 	header := m.viewHeader()
-	footer := footerStyle.Render(m.help.View(m.keys))
+	footer := m.viewFooter()
 
-	// Compute height of all elements to send to table
-	topHeight := lg.Height(header)
-	helpHeight := lg.Height(footer)
-	tableHeight := m.totalHeight - topHeight - helpHeight
-	pageSize := tableHeight - 6 // magic offset based on current header + tableHeader rendering
-	if pageSize < 1 {
-		pageSize = 1
+	// Compute height of all elements to send to component
+	headerHeight := lg.Height(header)
+	footerHeight := lg.Height(footer)
+	innerHeight := m.totalHeight - headerHeight - footerHeight
+
+	var mainView string
+	if m.showSettings {
+		m.settings.SetSize(m.totalWidth, innerHeight)
+		mainView = m.settings.View()
+	} else {
+		pageSize := innerHeight - 6 // magic offset based on current header + tableHeader rendering
+		if pageSize < 1 {
+			pageSize = 1
+		}
+		m.table = m.table.WithMinimumHeight(innerHeight).WithPageSize(pageSize)
+		mainView = tableStyle.Render(m.table.View())
 	}
-	m.table = m.table.WithMinimumHeight(tableHeight).WithPageSize(pageSize)
 
 	view := lg.JoinVertical(
 		lg.Left,
 		header,
-		tableStyle.Render(m.table.View()),
+		mainView,
 		footer,
 	)
 	return Style().Render(view)

@@ -12,6 +12,8 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/evertras/bubble-table/table"
 
+	"gitlab.com/patopest/mdns-discovery/app/settings"
+	"gitlab.com/patopest/mdns-discovery/app/keys"
 	"gitlab.com/patopest/mdns-discovery/network"
 )
 
@@ -33,7 +35,7 @@ type App struct {
 	table   table.Model
 	columns []table.Column
 
-	keys    keyMap // Our own keymap to use the help interface
+	keys    keys.KeyMap
 	help    help.Model
 	spinner spinner.Model
 
@@ -44,6 +46,10 @@ type App struct {
 	// Sorting
 	sortedColumnKey string
 	sortedDirection int
+
+	// Interface selector
+	showSettings    bool
+	settings *settings.Model
 }
 
 func NewApp(ifaces []string, domains []string) *App {
@@ -75,16 +81,22 @@ func NewApp(ifaces []string, domains []string) *App {
 
 	// Create the entries channel
 	entriesCh := make(chan network.ServiceEntry, 30)
+	discovery := network.InitDiscovery(ifaces, domains, entriesCh)
+	settings := settings.New(&discovery)
 
-	return &App{
-		discovery: network.InitDiscovery(ifaces, domains, entriesCh),
-		table:     table,
-		columns:   columns,
-		help:      help,
-		keys:      DefaultKeyMap,
-		spinner:   s,
-		entriesCh: entriesCh,
+	app := &App{
+		discovery:      discovery,
+		table:          table,
+		columns:        columns,
+		help:           help,
+		keys:           keys.DefaultKeyMap,
+		spinner:        s,
+		entriesCh:      entriesCh,
+		showSettings: false,
+		settings: settings,
 	}
+
+	return app
 }
 
 type EntryMsg network.ServiceEntry
@@ -113,12 +125,6 @@ func (m *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 	var cmds []tea.Cmd
 
-	m.table, cmd = m.table.Update(msg)
-	cmds = append(cmds, cmd)
-
-	m.spinner, cmd = m.spinner.Update(msg)
-	cmds = append(cmds, cmd)
-
 	switch msg := msg.(type) {
 	case EntryMsg:
 		entry := network.ServiceEntry(msg)
@@ -140,39 +146,85 @@ func (m *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.totalWidth = msg.Width
 		m.totalHeight = msg.Height
 		m.table = m.table.WithTargetWidth(msg.Width)
+		m.settings.SetSize(msg.Width, msg.Height-6)
 		m.help.Width = msg.Width
 
 	case tea.KeyMsg:
+		// Special cases
+		if m.table.GetIsFilterInputFocused() {
+			m.table, cmd = m.table.Update(msg)
+			return m, cmd
+		}
+
+		// Handle top-level keys
 		switch {
-		case key.Matches(msg, m.keys.SortName):
-			m.sortedColumnKey = "name"
-			m.sortedDirection += 1
-			m.sort()
-		case key.Matches(msg, m.keys.SortService):
-			m.sortedColumnKey = "service"
-			m.sortedDirection += 1
-			m.sort()
-		case key.Matches(msg, m.keys.SortDomain):
-			m.sortedColumnKey = "domain"
-			m.sortedDirection += 1
-			m.sort()
-		case key.Matches(msg, m.keys.SortHostname):
-			m.sortedColumnKey = "hostname"
-			m.sortedDirection += 1
-			m.sort()
-		case key.Matches(msg, m.keys.SortIp):
-			m.sortedColumnKey = "ip"
-			m.sortedDirection += 1
-			m.sort()
-		case key.Matches(msg, m.keys.SortPort):
-			m.sortedColumnKey = "port"
-			m.sortedDirection += 1
-			m.sort()
+		case key.Matches(msg, m.keys.Settings):
+			m.showSettings = !m.showSettings
 		case key.Matches(msg, m.keys.Help):
 			m.help.ShowAll = !m.help.ShowAll
 		case key.Matches(msg, m.keys.Quit):
 			cmds = append(cmds, tea.Quit)
 		}
+		// Component specific keys
+		if m.showSettings {
+			switch {
+			case key.Matches(msg, m.settings.Keys.Close):
+				m.showSettings = false
+			}
+		} else {
+			switch {
+			case key.Matches(msg, m.keys.SortName):
+				m.sortedColumnKey = "name"
+				m.sortedDirection += 1
+				m.sort()
+			case key.Matches(msg, m.keys.SortService):
+				m.sortedColumnKey = "service"
+				m.sortedDirection += 1
+				m.sort()
+			case key.Matches(msg, m.keys.SortDomain):
+				m.sortedColumnKey = "domain"
+				m.sortedDirection += 1
+				m.sort()
+			case key.Matches(msg, m.keys.SortHostname):
+				m.sortedColumnKey = "hostname"
+				m.sortedDirection += 1
+				m.sort()
+			case key.Matches(msg, m.keys.SortIp):
+				m.sortedColumnKey = "ip"
+				m.sortedDirection += 1
+				m.sort()
+			case key.Matches(msg, m.keys.SortPort):
+				m.sortedColumnKey = "port"
+				m.sortedDirection += 1
+				m.sort()
+			}
+		}
+
+	case settings.ToggleInterfaceMsg:
+		if msg.Enabled {
+			// Find the interface by name
+			allInterfaces := network.GetInterfaces()
+			for _, iface := range allInterfaces {
+				if iface.Name == msg.IfaceName {
+					m.discovery.EnableInterface(iface)
+					break
+				}
+			}
+		} else {
+			m.discovery.DisableInterface(msg.IfaceName)
+		}
+	}
+
+	// Update components
+	m.spinner, cmd = m.spinner.Update(msg)
+	cmds = append(cmds, cmd)
+	
+	if m.showSettings {
+		cmd = m.settings.Update(msg)
+		cmds = append(cmds, cmd)
+	} else {
+		m.table, cmd = m.table.Update(msg)
+		cmds = append(cmds, cmd)
 	}
 
 	return m, tea.Batch(cmds...)
