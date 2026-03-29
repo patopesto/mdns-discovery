@@ -52,7 +52,7 @@ func main() {
 
 	if *fake {
 		m = app.NewApp(*ifaces, []string{"test.com"})
-		m.InjectFakeData(network.FakeData)
+		m.InjectFakeData(network.FakeDataLong)
 	} else {
 		m = app.NewApp(*ifaces, *doms)
 	}

@@ -70,6 +70,7 @@ type Item struct {
 	enabled bool
 }
 
+// Implements list.Item interface
 func (i Item) FilterValue() string { return i.iface.Name }
 func (i Item) Title() string       { return i.iface.Name }
 func (i Item) Description() string { return i.iface.HardwareAddr.String() }
@@ -85,6 +86,7 @@ func NewDelegate() Delegate {
 	}
 }
 
+// Implements list.ItemDelegate interface
 func (d Delegate) Height() int                               { return 2 }
 func (d Delegate) Spacing() int                              { return 1 }
 func (d Delegate) Update(msg tea.Msg, m *list.Model) tea.Cmd { return nil }
@@ -133,8 +135,8 @@ func (d Delegate) Render(w io.Writer, m list.Model, index int, item list.Item) {
 type Model struct {
 	discovery *network.Discovery
 
-	list      list.Model
-	Keys      keyMap
+	list list.Model
+	Keys keyMap
 }
 
 // New creates a new interface selector
@@ -237,12 +239,3 @@ func (m *Model) View() string {
 	return m.list.View()
 }
 
-// Implements help.KeyMap interface
-func (m *Model) ShortHelp() []key.Binding {
-	return m.Keys.ShortHelp()
-}
-
-// Implements help.KeyMap interface
-func (m *Model) FullHelp() [][]key.Binding {
-	return m.Keys.FullHelp()
-}

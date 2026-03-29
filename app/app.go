@@ -1,29 +1,20 @@
 package app
 
 import (
-	"fmt"
 	"reflect"
-	"slices"
-	"strings"
 
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/evertras/bubble-table/table"
 
-	"gitlab.com/patopest/mdns-discovery/app/settings"
 	"gitlab.com/patopest/mdns-discovery/app/keys"
+	"gitlab.com/patopest/mdns-discovery/app/settings"
+	"gitlab.com/patopest/mdns-discovery/app/table"
 	"gitlab.com/patopest/mdns-discovery/network"
 )
 
 const APP_TITLE string = "mDNS Discovery"
-
-const (
-	SortedNone int = iota
-	SortedAsc
-	SortedDesc
-)
 
 type App struct {
 	// data
@@ -31,9 +22,8 @@ type App struct {
 	data      []network.ServiceEntry
 	entriesCh chan network.ServiceEntry
 
-	// bubble tea components
-	table   table.Model
-	columns []table.Column
+	// table component
+	table table.Model
 
 	keys    keys.KeyMap
 	help    help.Model
@@ -43,32 +33,14 @@ type App struct {
 	totalWidth  int
 	totalHeight int
 
-	// Sorting
-	sortedColumnKey string
-	sortedDirection int
-
 	// Interface selector
-	showSettings    bool
-	settings *settings.Model
+	showSettings bool
+	settings     *settings.Model
 }
 
 func NewApp(ifaces []string, domains []string) *App {
-	columns := []table.Column{
-		table.NewFlexColumn("name", "Name", 20).WithFiltered(true),
-		table.NewFlexColumn("service", "Service", 18).WithFiltered(true),
-		table.NewFlexColumn("domain", "Domain", 6).WithFiltered(true),
-		table.NewFlexColumn("hostname", "Hostname", 18).WithFiltered(true),
-		table.NewColumn("ip", "IP", 15).WithFiltered(true),
-		table.NewColumn("port", "Port", 6).WithFiltered(true),
-		table.NewFlexColumn("info", "Info", 20).WithFiltered(true),
-	}
-
-	table := table.New(columns).
-		Focused(true).
-		Filtered(true).
-		WithBaseStyle(tableBaseStyle).
-		HeaderStyle(tableHeaderStyle).
-		HighlightStyle(tableHighlightedRowStyle)
+	table := table.New().
+		WithStyles(tableBaseStyle, tableHeaderStyle, tableHighlightedRowStyle)
 
 	help := help.New()
 	help.ShortSeparator = "  •  "
@@ -85,15 +57,14 @@ func NewApp(ifaces []string, domains []string) *App {
 	settings := settings.New(&discovery)
 
 	app := &App{
-		discovery:      discovery,
+		discovery:    discovery,
 		table:          table,
-		columns:        columns,
-		help:           help,
-		keys:           keys.DefaultKeyMap,
-		spinner:        s,
-		entriesCh:      entriesCh,
+		help:         help,
+		keys:         keys.DefaultKeyMap,
+		spinner:      s,
+		entriesCh:    entriesCh,
 		showSettings: false,
-		settings: settings,
+		settings:     settings,
 	}
 
 	return app
@@ -111,7 +82,7 @@ func (m *App) listenForEntries() tea.Cmd {
 func (m *App) InjectFakeData(entries []network.ServiceEntry) {
 	for _, entry := range entries {
 		m.data = append(m.data, entry)
-		m.table = m.table.WithRows(generateRowsFromData(m.data))
+		m.table.SetRows(m.data)
 	}
 }
 
@@ -137,7 +108,7 @@ func (m *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		if !found {
 			m.data = append(m.data, entry)
-			m.table = m.table.WithRows(generateRowsFromData(m.data))
+			m.table.SetRows(m.data)
 		}
 		// Listen for the next entry
 		cmds = append(cmds, m.listenForEntries())
@@ -145,14 +116,12 @@ func (m *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.totalWidth = msg.Width
 		m.totalHeight = msg.Height
-		m.table = m.table.WithTargetWidth(msg.Width)
-		m.settings.SetSize(msg.Width, msg.Height-6)
 		m.help.Width = msg.Width
 
 	case tea.KeyMsg:
 		// Special cases
-		if m.table.GetIsFilterInputFocused() {
-			m.table, cmd = m.table.Update(msg)
+		if m.table.IsFilterInputFocused() {
+			cmd = m.table.Update(msg)
 			return m, cmd
 		}
 
@@ -170,33 +139,6 @@ func (m *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			switch {
 			case key.Matches(msg, m.settings.Keys.Close):
 				m.showSettings = false
-			}
-		} else {
-			switch {
-			case key.Matches(msg, m.keys.SortName):
-				m.sortedColumnKey = "name"
-				m.sortedDirection += 1
-				m.sort()
-			case key.Matches(msg, m.keys.SortService):
-				m.sortedColumnKey = "service"
-				m.sortedDirection += 1
-				m.sort()
-			case key.Matches(msg, m.keys.SortDomain):
-				m.sortedColumnKey = "domain"
-				m.sortedDirection += 1
-				m.sort()
-			case key.Matches(msg, m.keys.SortHostname):
-				m.sortedColumnKey = "hostname"
-				m.sortedDirection += 1
-				m.sort()
-			case key.Matches(msg, m.keys.SortIp):
-				m.sortedColumnKey = "ip"
-				m.sortedDirection += 1
-				m.sort()
-			case key.Matches(msg, m.keys.SortPort):
-				m.sortedColumnKey = "port"
-				m.sortedDirection += 1
-				m.sort()
 			}
 		}
 
@@ -218,102 +160,14 @@ func (m *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// Update components
 	m.spinner, cmd = m.spinner.Update(msg)
 	cmds = append(cmds, cmd)
-	
+
 	if m.showSettings {
 		cmd = m.settings.Update(msg)
 		cmds = append(cmds, cmd)
 	} else {
-		m.table, cmd = m.table.Update(msg)
+		cmd = m.table.Update(msg)
 		cmds = append(cmds, cmd)
 	}
 
 	return m, tea.Batch(cmds...)
-}
-
-// Fix for escaped characters or ascii binary characters as "\123"
-// https://github.com/miekg/dns/issues/1607
-func unescapeString(s string) string {
-	var buf strings.Builder
-	for i := 0; i < len(s); i++ {
-		if s[i] == '\\' && i+1 < len(s) {
-			next := s[i+1]
-			// Check if next char is a digit (for decimal byte values)
-			if next >= '0' && next <= '9' {
-				start := i + 1
-				end := start
-				for end < len(s) && s[end] >= '0' && s[end] <= '9' {
-					end++
-				}
-				// Parse decimal value and convert to byte
-				val := 0
-				for j := start; j < end; j++ {
-					val = val*10 + int(s[j]-'0')
-				}
-				buf.WriteByte(byte(val))
-				i = end - 1
-			} else {
-				// Any other escaped character - output it literally
-				buf.WriteByte(next)
-				i++
-			}
-		} else {
-			buf.WriteByte(s[i])
-		}
-	}
-	return buf.String()
-}
-
-func generateRowsFromData(data []network.ServiceEntry) []table.Row {
-	rows := []table.Row{}
-
-	for _, entry := range data {
-		name := strings.Split(entry.Name, ".")
-		row := table.NewRow(table.RowData{
-			"name":     unescapeString(name[0]),
-			"service":  strings.Join(name[1:len(name)-2], "."),
-			"domain":   name[len(name)-2],
-			"hostname": entry.Host,
-			"ip":       entry.AddrV4,
-			"port":     entry.Port,
-			"info":     unescapeString(entry.Info),
-		})
-
-		rows = append(rows, row)
-	}
-
-	return rows
-}
-
-func (m *App) sort() {
-	if m.sortedDirection == SortedAsc {
-		m.table = m.table.SortByAsc(m.sortedColumnKey)
-	} else if m.sortedDirection == SortedDesc {
-		m.table = m.table.SortByDesc(m.sortedColumnKey)
-	} else {
-		m.sortedDirection = SortedNone
-		m.table = m.table.SortByAsc("") // trick to reset sorting
-	}
-
-	// Update column header
-	new_columns := slices.Clone(m.columns)
-	for idx, column := range m.columns {
-		if column.Key() == m.sortedColumnKey {
-			title := column.Title()
-			if m.sortedDirection == SortedAsc {
-				title = fmt.Sprintf("%s ▼", title)
-			} else if m.sortedDirection == SortedDesc {
-				title = fmt.Sprintf("%s ▲", title)
-			}
-
-			var new_column table.Column
-			if column.IsFlex() {
-				new_column = table.NewFlexColumn(column.Key(), title, column.FlexFactor())
-			} else {
-				new_column = table.NewColumn(column.Key(), title, column.Width())
-			}
-			new_columns[idx] = new_column
-			break
-		}
-	}
-	m.table = m.table.WithColumns(new_columns)
 }

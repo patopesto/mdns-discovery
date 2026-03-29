@@ -3,6 +3,7 @@ package app
 import (
 	"strings"
 
+	"github.com/charmbracelet/bubbles/key"
 	lg "github.com/charmbracelet/lipgloss"
 )
 
@@ -45,7 +46,7 @@ var tableHeaderStyle = Style().
 	Align(lg.Center)
 
 var tableHighlightedRowStyle = Style().
-	Bold(true).
+	// Bold(true).
 	Background(lg.Color("96")).
 	Foreground(lg.Color("255"))
 
@@ -84,13 +85,32 @@ func (m *App) viewHeader() string {
 	return headerStyle.Render(header)
 }
 
-func (m *App) viewFooter() string {
-	var footer string
+// Implements help.KeyMap interface
+func (m App) ShortHelp() []key.Binding {
+	keys := []key.Binding{m.keys.Help}
 	if m.showSettings {
-		footer = m.help.View(m.settings)
+		keys = append(keys, m.settings.ShortHelp()...)
 	} else {
-		footer = m.help.View(m.keys)
+		keys = append(keys, m.table.ShortHelp()...)
 	}
+	keys = append(keys, m.keys.Quit)
+	return keys
+}
+
+// Implements help.KeyMap interface
+func (m App) FullHelp() [][]key.Binding {
+	var keys [][]key.Binding
+	if m.showSettings {
+		keys = append(keys, m.settings.FullHelp()...)
+	} else {
+		keys = append(keys, m.table.FullHelp()...)
+	}
+	keys = append(keys, []key.Binding{m.keys.Help, m.keys.Quit})
+	return keys
+}
+
+func (m *App) viewFooter() string {
+	footer := m.help.View(m)
 
 	return footerStyle.Render(footer)
 }
@@ -110,11 +130,7 @@ func (m *App) View() string {
 		m.settings.SetSize(m.totalWidth, innerHeight)
 		mainView = m.settings.View()
 	} else {
-		pageSize := innerHeight - 6 // magic offset based on current header + tableHeader rendering
-		if pageSize < 1 {
-			pageSize = 1
-		}
-		m.table = m.table.WithMinimumHeight(innerHeight).WithPageSize(pageSize)
+		m.table.SetSize(m.totalWidth, innerHeight)
 		mainView = tableStyle.Render(m.table.View())
 	}
 

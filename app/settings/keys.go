@@ -11,22 +11,21 @@ type keyMap struct {
 	Down key.Binding
 
 	Select key.Binding
-	Close      key.Binding
+	Close  key.Binding
 
-	Help key.Binding
-	Quit key.Binding
 }
 
-func (k keyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Help, k.Select, k.Close, k.Quit}
+// Implements help.KeyMap interface
+func (m *Model) ShortHelp() []key.Binding {
+	return []key.Binding{m.Keys.Select, m.Keys.Close}
 }
 
-func (k keyMap) FullHelp() [][]key.Binding {
+// Implements help.KeyMap interface
+func (m *Model) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
-		{k.Up, k.Down}, // first column
-		{k.Select},     // second column
-		{k.Close},      // ...
-		{k.Help, k.Quit},
+		{m.Keys.Up, m.Keys.Down}, // first column
+		{m.Keys.Select},     // second column
+		{m.Keys.Close},      // ...
 	}
 }
 
@@ -42,7 +41,4 @@ var SettingsKeyMap = keyMap{
 		key.WithKeys("esc"),
 		key.WithHelp("esc", "close"),
 	),
-
-	Help: keys.DefaultKeyMap.Help,
-	Quit: keys.DefaultKeyMap.Quit,
 }
