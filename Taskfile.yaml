@@ -2,11 +2,20 @@
 
 version: '3'
 
+vars:
+  VERSION:
+    sh: git describe --tags --always --dirty 2>/dev/null || echo "dev"
+  BRANCH:
+    sh: git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown"
+  DATE:
+    sh: date -u +%Y-%m-%dT%H:%M:%SZ
+  LDFLAGS: -ldflags "-X main.Version={{.VERSION}} -X main.Branch={{.BRANCH}} -X main.BuildDate={{.DATE}}"
+
 tasks:
   build:
     desc: "Build the app"
     cmds:
-      - go build -o dist/mdns-discovery .
+      - go build {{.LDFLAGS}} -o dist/mdns-discovery .
     sources:
       - ./*.go
       - ./**/*.go

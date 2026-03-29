@@ -17,7 +17,7 @@ builds:
     flags:
       - -trimpath
     ldflags:
-      # Populate fields at build time for the version collector
+      # Populate fields at build time for the version flag
       - -X main.Version={{ .Version }}
       - -X main.Branch={{ .Branch }}
       - -X main.BuildDate={{ .Date }}

@@ -3,10 +3,10 @@ package app
 import (
 	"reflect"
 
-	tea "charm.land/bubbletea/v2"
-	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/help"
+	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/spinner"
+	tea "charm.land/bubbletea/v2"
 
 	"gitlab.com/patopest/mdns-discovery/app/keys"
 	"gitlab.com/patopest/mdns-discovery/app/settings"
