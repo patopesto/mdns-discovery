@@ -2,6 +2,7 @@ package table
 
 import (
 	"fmt"
+	"net"
 	"slices"
 	"strings"
 
@@ -35,7 +36,7 @@ func New() Model {
 		table.NewFlexColumn("service", "Service", 18).WithFiltered(true),
 		table.NewFlexColumn("domain", "Domain", 6).WithFiltered(true),
 		table.NewFlexColumn("hostname", "Hostname", 18).WithFiltered(true),
-		table.NewColumn("ip", "IP", 15).WithFiltered(true),
+		table.NewColumn("ip", "IP", 15).WithFiltered(true).WithSortFunc(SortIPs),
 		table.NewColumn("port", "Port", 6).WithFiltered(true),
 		table.NewFlexColumn("info", "Info", 20).WithFiltered(true),
 	}
@@ -130,14 +131,7 @@ func (m *Model) applySort() {
 				title = fmt.Sprintf("%s ▲", title)
 			}
 
-			var newColumn table.Column
-			if column.IsFlex() {
-				newColumn = table.NewFlexColumn(column.Key(), title, column.FlexFactor())
-			} else {
-				newColumn = table.NewColumn(column.Key(), title, column.Width())
-			}
-			newColumn = newColumn.WithFiltered(column.IsFilterable())
-			newColumns[idx] = newColumn
+			newColumns[idx] = column.WithTitle(title)
 			break
 		}
 	}
@@ -198,6 +192,20 @@ func (m *Model) SetSize(width, height int) {
 // SetMinimumHeight sets the minimum height (for compatibility)
 func (m *Model) SetMinimumHeight(height int) {
 	m.model = m.model.WithMinimumHeight(height)
+}
+
+func SortIPs(a, b interface{}) int {
+	ipA := a.(net.IP)
+	ipB := b.(net.IP)
+
+	for i := 0; i < len(ipA) && i < len(ipB); i++ {
+		if ipA[i] > ipB[i] {
+			return 1
+		} else if ipA[i] < ipB[i] {
+			return -1
+		}
+	}
+	return 0
 }
 
 // unescapeString handles escaped characters in mDNS service names

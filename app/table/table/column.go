@@ -44,8 +44,8 @@ func (c Column) WithFiltered(filterable bool) Column {
 	return c
 }
 
-// SetTitle updates the column title
-func (c Column) SetTitle(title string) Column {
+// WithTitle updates the column title
+func (c Column) WithTitle(title string) Column {
 	c.title = title
 	return c
 }
