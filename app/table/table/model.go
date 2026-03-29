@@ -22,7 +22,6 @@ type Model struct {
 	width            int
 	height           int
 	innerHeight      int // height available to rows (after header and footer)
-	pageSize         int
 	horizontalScroll int // horizontal scroll offset
 
 	// Control
@@ -61,7 +60,6 @@ func New(columns []Column) Model {
 		columns:           columns,
 		rows:              []Row{},
 		allRows:           []Row{},
-		pageSize:          0,
 		horizontalScroll:  0,
 		focused:           true,
 		cursor:            0,
@@ -126,12 +124,6 @@ func (m Model) WithRows(rows []Row) Model {
 func (m Model) WithColumns(columns []Column) Model {
 	m.columns = columns
 	m.calculateColumnWidths()
-	return m
-}
-
-// WithPageSize sets the page size
-func (m Model) WithPageSize(size int) Model {
-	m.pageSize = size
 	return m
 }
 
@@ -371,7 +363,8 @@ func (m Model) renderHeader() string {
 	for _, col := range m.columns {
 		width := col.width
 		title := truncate(col.Title(), width)
-		cell := m.headerStyle.Width(width).Render(padRight(title, width))
+		// cell := m.headerStyle.Width(width).Render(padRight(title, width))
+		cell := m.headerStyle.Width(width).Render(title)
 		cells = append(cells, cell)
 	}
 
@@ -418,10 +411,6 @@ func (m Model) renderRow(row Row, isSelected bool) string {
 	for _, col := range m.columns {
 		width := col.width
 		value := row.GetString(col.Key())
-
-		// Apply horizontal scroll
-		// value = applyScroll(value, width, m.horizontalScroll)
-		// value = padRight(value, width)
 		value = truncate(value, width)
 
 		cellStyle := lg.NewStyle().Width(width)
@@ -491,22 +480,6 @@ func (m Model) calculateColumnWidths() {
 	}
 }
 
-// applyScroll applies horizontal scrolling to a string
-func applyScroll(s string, width, scroll int) string {
-	if scroll <= 0 {
-		return truncate(s, width)
-	}
-
-	// Convert to runes for proper Unicode handling
-	runes := []rune(s)
-	if scroll >= len(runes) {
-		return padRight("", width)
-	}
-
-	scrolled := string(runes[scroll:])
-	return truncate(scrolled, width)
-}
-
 // truncate truncates a string to fit within maxWidth
 func truncate(s string, maxWidth int) string {
 	if maxWidth <= 0 {
@@ -540,11 +513,3 @@ func truncate(s string, maxWidth int) string {
 	return result.String()
 }
 
-// padRight pads a string to the right to reach target width
-func padRight(s string, width int) string {
-	sw := runewidth.StringWidth(s)
-	if sw >= width {
-		return s
-	}
-	return s + strings.Repeat(" ", width-sw)
-}

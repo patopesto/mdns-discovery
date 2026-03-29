@@ -195,11 +195,6 @@ func (m *Model) SetSize(width, height int) {
 	m.model = m.model.WithTargetWidth(width).WithMinimumHeight(height)
 }
 
-// SetPageSize sets the page size
-func (m *Model) SetPageSize(size int) {
-	m.model = m.model.WithPageSize(size)
-}
-
 // SetMinimumHeight sets the minimum height (for compatibility)
 func (m *Model) SetMinimumHeight(height int) {
 	m.model = m.model.WithMinimumHeight(height)

@@ -43,7 +43,7 @@ var tableBaseStyle = Style().
 var tableHeaderStyle = Style().
 	Foreground(lg.Color("203")).
 	Bold(true).
-	Align(lg.Center)
+	Align(lg.Left)
 
 var tableHighlightedRowStyle = Style().
 	// Bold(true).
