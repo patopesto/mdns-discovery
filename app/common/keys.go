@@ -1,15 +1,18 @@
-package keys
+package common
 
 import (
 	"charm.land/bubbles/v2/key"
 )
 
 type KeyMap struct {
+	// navigation
 	Up    key.Binding
 	Down  key.Binding
 	Left  key.Binding
 	Right key.Binding
 
+	// sorting (table)
+	Sort   key.Binding // fake key only for description purposes (in help)
 	SortName     key.Binding
 	SortService  key.Binding
 	SortDomain   key.Binding
@@ -17,32 +20,23 @@ type KeyMap struct {
 	SortIp       key.Binding
 	SortPort     key.Binding
 
-	Sort   key.Binding // fake key only for description purposes (in help)
+	// fitlering (table)
 	Filter key.Binding
+	FilterBlur  key.Binding
+	FilterClear key.Binding
 
+	// modes / settings / panes
 	Settings key.Binding
+	Select key.Binding
+	Close key.Binding
 
+	// other
 	Help key.Binding
 	Quit key.Binding
 }
 
-func (k KeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Help, k.Sort, k.Filter, k.Settings, k.Quit}
-}
-
-func (k KeyMap) FullHelp() [][]key.Binding {
-	return [][]key.Binding{
-		{k.Up, k.Down},              // first column
-		{k.Left, k.Right},           // second column
-		{k.SortName, k.SortService}, // ...
-		{k.SortDomain, k.SortHostname},
-		{k.SortIp, k.SortPort},
-		{k.Filter, k.Settings},
-		{k.Help, k.Quit},
-	}
-}
-
 var DefaultKeyMap = KeyMap{
+	// navigation
 	Up: key.NewBinding(
 		key.WithKeys("up", "k"),
 		key.WithHelp("↑/k", "move up"),
@@ -58,6 +52,12 @@ var DefaultKeyMap = KeyMap{
 	Right: key.NewBinding(
 		key.WithKeys("right", "l"),
 		key.WithHelp("→/l", "move right"),
+	),
+
+	// sorting (table)
+	Sort: key.NewBinding(
+		key.WithKeys(""),
+		key.WithHelp("[1-6]", "sort"),
 	),
 	SortName: key.NewBinding(
 		key.WithKeys("1"),
@@ -83,18 +83,36 @@ var DefaultKeyMap = KeyMap{
 		key.WithKeys("6"),
 		key.WithHelp("6", "sort by port "),
 	),
-	Sort: key.NewBinding(
-		key.WithKeys(""),
-		key.WithHelp("[1-6]", "sort"),
-	),
+
+	// fitlering (table)
 	Filter: key.NewBinding(
 		key.WithKeys("/"),
 		key.WithHelp("/", "filter"),
 	),
+	FilterBlur: key.NewBinding(
+		key.WithKeys("esc", "enter"),
+		key.WithHelp("enter/esc", "unfocus"),
+	),
+	FilterClear: key.NewBinding(
+		key.WithKeys("esc"),
+		key.WithHelp("esc", "clear filter"),
+	),
+
+	// modes / settings / panes
 	Settings: key.NewBinding(
 		key.WithKeys("s"),
 		key.WithHelp("s", "settings"),
 	),
+	Select: key.NewBinding(
+		key.WithKeys("space", "enter"),
+		key.WithHelp("<space>/enter", "toggle"),
+	),
+	Close: key.NewBinding(
+		key.WithKeys("esc"),
+		key.WithHelp("esc", "close"),
+	),
+
+	// other
 	Help: key.NewBinding(
 		key.WithKeys("?"),
 		key.WithHelp("?", "toggle help"),

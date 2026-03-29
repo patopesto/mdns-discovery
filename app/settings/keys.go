@@ -2,11 +2,14 @@ package settings
 
 import (
 	"charm.land/bubbles/v2/key"
+	"charm.land/bubbles/v2/list"
 
-	"gitlab.com/patopest/mdns-discovery/app/keys"
+	"gitlab.com/patopest/mdns-discovery/app/common"
 )
 
 type keyMap struct {
+	list.KeyMap
+
 	Up   key.Binding
 	Down key.Binding
 
@@ -29,15 +32,14 @@ func (m *Model) FullHelp() [][]key.Binding {
 }
 
 var SettingsKeyMap = keyMap{
-	Up:   keys.DefaultKeyMap.Up,
-	Down: keys.DefaultKeyMap.Down,
+	KeyMap: list.KeyMap {
+		CursorUp:   common.DefaultKeyMap.Up,
+		CursorDown: common.DefaultKeyMap.Down,
+	},
 
-	Select: key.NewBinding(
-		key.WithKeys("space", "enter"),
-		key.WithHelp("<space>/enter", "toggle"),
-	),
-	Close: key.NewBinding(
-		key.WithKeys("esc"),
-		key.WithHelp("esc", "close"),
-	),
+	Up:   common.DefaultKeyMap.Up,
+	Down: common.DefaultKeyMap.Down,
+
+	Select: common.DefaultKeyMap.Select,
+	Close: common.DefaultKeyMap.Close,
 }

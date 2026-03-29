@@ -5,10 +5,10 @@ import (
 	"io"
 	"net"
 
-	"charm.land/bubbles/v2/key"
-	"charm.land/bubbles/v2/list"
 	tea "charm.land/bubbletea/v2"
 	lg "charm.land/lipgloss/v2"
+	"charm.land/bubbles/v2/key"
+	"charm.land/bubbles/v2/list"
 
 	"gitlab.com/patopest/mdns-discovery/network"
 )
@@ -162,6 +162,7 @@ func New(discovery *network.Discovery) *Model {
 	delegate := NewDelegate()
 	l := list.New(items, delegate, 0, 0)
 	l.Title = "Select network interfaces"
+	l.KeyMap = SettingsKeyMap.KeyMap
 	l.SetShowHelp(false)
 	l.SetShowTitle(true)
 	l.SetShowFilter(false)
@@ -215,18 +216,14 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
 		switch {
-		case key.Matches(msg, m.Keys.Up):
-			m.list.CursorUp()
-		case key.Matches(msg, m.Keys.Down):
-			m.list.CursorDown()
 		case key.Matches(msg, m.Keys.Select):
 			cmd = m.ToggleInterface()
 			cmds = append(cmds, cmd)
 		}
-	default:
-		m.list, cmd = m.list.Update(msg)
-		cmds = append(cmds, cmd)
 	}
+
+	m.list, cmd = m.list.Update(msg)
+	cmds = append(cmds, cmd)
 
 	return tea.Batch(cmds...)
 }

@@ -3,12 +3,12 @@ package app
 import (
 	"reflect"
 
-	"charm.land/bubbles/v2/help"
-	"charm.land/bubbles/v2/key"
-	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
+	"charm.land/bubbles/v2/key"
+	"charm.land/bubbles/v2/help"
+	"charm.land/bubbles/v2/spinner"
 
-	"gitlab.com/patopest/mdns-discovery/app/keys"
+	"gitlab.com/patopest/mdns-discovery/app/common"
 	"gitlab.com/patopest/mdns-discovery/app/settings"
 	"gitlab.com/patopest/mdns-discovery/app/table"
 	"gitlab.com/patopest/mdns-discovery/network"
@@ -25,7 +25,7 @@ type App struct {
 	// table component
 	table table.Model
 
-	keys    keys.KeyMap
+	keys    common.KeyMap
 	help    help.Model
 	spinner spinner.Model
 
@@ -60,7 +60,7 @@ func NewApp(ifaces []string, domains []string) *App {
 		discovery:    discovery,
 		table:        table,
 		help:         help,
-		keys:         keys.DefaultKeyMap,
+		keys:         common.DefaultKeyMap,
 		spinner:      s,
 		entriesCh:    entriesCh,
 		showSettings: false,

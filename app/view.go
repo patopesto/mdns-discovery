@@ -3,9 +3,9 @@ package app
 import (
 	"strings"
 
-	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 	lg "charm.land/lipgloss/v2"
+	"charm.land/bubbles/v2/key"
 )
 
 /* ----- Styles ----- */
