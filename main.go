@@ -6,7 +6,7 @@ import (
 	"log"
 	"os"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 	flag "github.com/spf13/pflag"
 
 	"gitlab.com/patopest/mdns-discovery/app"
@@ -58,7 +58,7 @@ func main() {
 		m = app.NewApp(*ifaces, *doms)
 	}
 
-	p := tea.NewProgram(m, tea.WithAltScreen())
+	p := tea.NewProgram(m)
 	if _, err := p.Run(); err != nil {
 		fmt.Printf("Alas, there's been an error: %v", err)
 		os.Exit(1)

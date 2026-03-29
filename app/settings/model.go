@@ -5,10 +5,10 @@ import (
 	"io"
 	"net"
 
-	"github.com/charmbracelet/bubbles/key"
-	"github.com/charmbracelet/bubbles/list"
-	tea "github.com/charmbracelet/bubbletea"
-	lg "github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/key"
+	"charm.land/bubbles/v2/list"
+	tea "charm.land/bubbletea/v2"
+	lg "charm.land/lipgloss/v2"
 
 	"gitlab.com/patopest/mdns-discovery/network"
 )
@@ -213,7 +213,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	var cmds []tea.Cmd
 
 	switch msg := msg.(type) {
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		switch {
 		case key.Matches(msg, m.Keys.Up):
 			m.list.CursorUp()
@@ -238,4 +238,3 @@ func (m *Model) SetSize(width, height int) {
 func (m *Model) View() string {
 	return m.list.View()
 }
-

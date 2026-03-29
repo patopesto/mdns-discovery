@@ -1,7 +1,7 @@
 package settings
 
 import (
-	"github.com/charmbracelet/bubbles/key"
+	"charm.land/bubbles/v2/key"
 
 	"gitlab.com/patopest/mdns-discovery/app/keys"
 )
@@ -12,7 +12,6 @@ type keyMap struct {
 
 	Select key.Binding
 	Close  key.Binding
-
 }
 
 // Implements help.KeyMap interface
@@ -24,8 +23,8 @@ func (m *Model) ShortHelp() []key.Binding {
 func (m *Model) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{m.Keys.Up, m.Keys.Down}, // first column
-		{m.Keys.Select},     // second column
-		{m.Keys.Close},      // ...
+		{m.Keys.Select},          // second column
+		{m.Keys.Close},           // ...
 	}
 }
 
@@ -34,7 +33,7 @@ var SettingsKeyMap = keyMap{
 	Down: keys.DefaultKeyMap.Down,
 
 	Select: key.NewBinding(
-		key.WithKeys(" ", "enter"),
+		key.WithKeys("space", "enter"),
 		key.WithHelp("<space>/enter", "toggle"),
 	),
 	Close: key.NewBinding(

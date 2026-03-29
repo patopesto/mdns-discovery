@@ -3,10 +3,10 @@ package app
 import (
 	"reflect"
 
-	"github.com/charmbracelet/bubbles/help"
-	"github.com/charmbracelet/bubbles/key"
-	"github.com/charmbracelet/bubbles/spinner"
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/bubbles/v2/key"
+	"charm.land/bubbles/v2/help"
+	"charm.land/bubbles/v2/spinner"
 
 	"gitlab.com/patopest/mdns-discovery/app/keys"
 	"gitlab.com/patopest/mdns-discovery/app/settings"
@@ -58,7 +58,7 @@ func NewApp(ifaces []string, domains []string) *App {
 
 	app := &App{
 		discovery:    discovery,
-		table:          table,
+		table:        table,
 		help:         help,
 		keys:         keys.DefaultKeyMap,
 		spinner:      s,
@@ -88,7 +88,7 @@ func (m *App) InjectFakeData(entries []network.ServiceEntry) {
 
 // Implement tea.Model interface
 func (m *App) Init() tea.Cmd {
-	return tea.Batch(tea.SetWindowTitle(APP_TITLE), m.listenForEntries(), m.spinner.Tick)
+	return tea.Batch(m.listenForEntries(), m.spinner.Tick)
 }
 
 // Implement tea.Model interface
@@ -116,9 +116,9 @@ func (m *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.totalWidth = msg.Width
 		m.totalHeight = msg.Height
-		m.help.Width = msg.Width
+		m.help.SetWidth(msg.Width)
 
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		// Special cases
 		if m.table.IsFilterInputFocused() {
 			cmd = m.table.Update(msg)

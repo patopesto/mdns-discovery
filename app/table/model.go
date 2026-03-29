@@ -6,9 +6,9 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/charmbracelet/bubbles/key"
-	tea "github.com/charmbracelet/bubbletea"
-	lg "github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/key"
+	tea "charm.land/bubbletea/v2"
+	lg "charm.land/lipgloss/v2"
 
 	"gitlab.com/patopest/mdns-discovery/app/table/table"
 	"gitlab.com/patopest/mdns-discovery/network"
@@ -164,7 +164,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	m.model, cmd = m.model.Update(msg)
 
 	switch msg := msg.(type) {
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		switch {
 		case key.Matches(msg, m.Keys.SortName):
 			m.NextSort("name")

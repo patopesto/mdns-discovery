@@ -3,8 +3,9 @@ package app
 import (
 	"strings"
 
-	"github.com/charmbracelet/bubbles/key"
-	lg "github.com/charmbracelet/lipgloss"
+	tea "charm.land/bubbletea/v2"
+	lg "charm.land/lipgloss/v2"
+	"charm.land/bubbles/v2/key"
 )
 
 /* ----- Styles ----- */
@@ -56,10 +57,7 @@ var footerStyle = Style().
 
 // Other
 var helpKeyStyle = Style().
-	Foreground(lg.AdaptiveColor{
-		Light: "#909090",
-		Dark:  "205",
-	})
+	Foreground(lg.Color("205"))
 
 func (m *App) viewHeader() string {
 	title := titleStyle.Render(APP_TITLE)
@@ -118,7 +116,7 @@ func (m *App) viewFooter() string {
 }
 
 // Implement tea.Model interface
-func (m *App) View() string {
+func (m *App) View() tea.View {
 	header := m.viewHeader()
 	footer := m.viewFooter()
 
@@ -136,11 +134,16 @@ func (m *App) View() string {
 		mainView = tableStyle.Render(m.table.View())
 	}
 
-	view := lg.JoinVertical(
+	content := lg.JoinVertical(
 		lg.Left,
 		header,
 		mainView,
 		footer,
 	)
-	return Style().Render(view)
+
+	view := tea.NewView(Style().Render(content))
+	view.AltScreen = true
+	view.WindowTitle = APP_TITLE
+	return view
 }
+

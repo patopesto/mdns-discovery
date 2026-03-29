@@ -4,10 +4,10 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/charmbracelet/bubbles/key"
-	"github.com/charmbracelet/bubbles/textinput"
-	tea "github.com/charmbracelet/bubbletea"
-	lg "github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/key"
+	"charm.land/bubbles/v2/textinput"
+	tea "charm.land/bubbletea/v2"
+	lg "charm.land/lipgloss/v2"
 	"github.com/mattn/go-runewidth"
 )
 
@@ -54,7 +54,7 @@ func New(columns []Column) Model {
 	ti := textinput.New()
 	ti.Placeholder = "filter..."
 	ti.CharLimit = 50
-	ti.Width = 30
+	ti.SetWidth(30)
 
 	return Model{
 		columns:           columns,
@@ -255,7 +255,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
 	switch msg := msg.(type) {
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		if m.filterInputFocused {
 			switch {
 			case key.Matches(msg, m.Keys.FilterBlur):
@@ -332,7 +332,7 @@ func (m Model) View() string {
 	// Empty rows
 	padding := m.innerHeight - lg.Height(rows)
 	if padding > 0 {
-		rows += "\n" + m.renderEmptyRows(padding) 
+		rows += "\n" + m.renderEmptyRows(padding)
 	}
 	sections = append(sections, rows)
 
@@ -481,7 +481,7 @@ func (m Model) calculateColumnWidths() {
 	// Calculate widths
 	remainingWidth := availableWidth - fixedWidth
 	leftOverWidth := remainingWidth % totalFlex
-	
+
 	var totalCalculatedWidth int
 	flexColumnIndices := []int{}
 
@@ -544,4 +544,3 @@ func truncate(s string, maxWidth int) string {
 
 	return result.String()
 }
-
