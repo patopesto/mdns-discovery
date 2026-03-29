@@ -309,51 +309,43 @@ func (m Model) Init() tea.Cmd {
 
 // View implements tea.Model
 func (m Model) View() string {
-	if m.width == 0 {
+	if m.width == 0 || m.height == 0 {
 		return ""
 	}
 
 	var sections []string
 
-	// Filter input
-	var filterView string
-	if m.filtered {
-		filterView = m.renderFilter()
-		sections = append(sections, filterView)
-	}
-
 	// Header row
 	headerView := m.renderHeader()
 	sections = append(sections, headerView)
 
-	m.innerHeight = m.height - lg.Height(headerView) - lg.Height(filterView) - m.baseStyle.GetHorizontalFrameSize()
+	m.innerHeight = m.height - lg.Height(headerView) - m.baseStyle.GetHorizontalFrameSize()
+
+	var footer string
+	if m.isFooterActive() {
+		footer = m.renderFooter()
+		m.innerHeight -= lg.Height(footer)
+	}
 
 	// Data rows
-	rowsView := m.renderRows()
-	sections = append(sections, rowsView)
+	rows := m.renderRows()
+	// Empty rows
+	padding := m.innerHeight - lg.Height(rows)
+	if padding > 0 {
+		rows += "\n" + m.renderEmptyRows(padding) 
+	}
+	sections = append(sections, rows)
 
-	// Padding
-	padding := 0
-	if m.height > 0 {
-		padding = m.innerHeight - lg.Height(rowsView)
+	if m.isFooterActive() {
+		sections = append(sections, footer)
 	}
 
-	for i := 1; i <= padding; i++ {
-		sections = append(sections, "")
-	}
+	view := lg.JoinVertical(
+		lg.Left,
+		sections...,
+	)
 
-	return m.baseStyle.Render(strings.Join(sections, "\n"))
-}
-
-// renderFilter renders the filter input
-func (m Model) renderFilter() string {
-	if m.filterInputFocused {
-		return m.filterPromptStyle.Render("/") + m.filterInput.View()
-	}
-	if m.filterText != "" {
-		return m.filterPromptStyle.Render("/") + m.filterText
-	}
-	return ""
+	return m.baseStyle.Render(view)
 }
 
 // renderHeader renders the column headers
@@ -369,6 +361,24 @@ func (m Model) renderHeader() string {
 	}
 
 	return strings.Join(cells, "")
+}
+
+func (m Model) isFooterActive() bool {
+	if m.filtered {
+		return m.filterInputFocused || m.filterText != ""
+	}
+	return false
+}
+
+// renderFooter renders the filter input
+func (m Model) renderFooter() string {
+	if m.filterInputFocused {
+		return m.filterInput.View()
+	}
+	if m.filterText != "" {
+		return m.filterPromptStyle.Render("/" + m.filterText)
+	}
+	return ""
 }
 
 // renderRows renders the data rows
@@ -423,6 +433,28 @@ func (m Model) renderRow(row Row, isSelected bool) string {
 	}
 
 	return strings.Join(cells, "")
+}
+
+// renderRow renders a single empty row (for padding)
+func (m Model) renderEmptyRows(num int) string {
+	var cells []string
+	var rows []string
+
+	for _, col := range m.columns {
+		width := col.width
+		value := ""
+
+		cellStyle := lg.NewStyle().Width(width)
+		cell := cellStyle.Render(value)
+		cells = append(cells, cell)
+	}
+	row := strings.Join(cells, "")
+
+	for i := 0; i < num; i++ {
+		rows = append(rows, row)
+	}
+
+	return strings.Join(rows, "\n")
 }
 
 // calculateColumnWidths calculates widths for each column

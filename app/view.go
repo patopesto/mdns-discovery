@@ -35,7 +35,7 @@ var interfaceStyle = Style().
 var tableStyle = Style()
 
 var tableBaseStyle = Style().
-	BorderStyle(lg.NormalBorder()).
+	BorderStyle(lg.RoundedBorder()).
 	BorderForeground(lg.Color("240")).
 	Foreground(lg.Color("252")).
 	Align(lg.Left)
@@ -92,6 +92,7 @@ func (m App) ShortHelp() []key.Binding {
 		keys = append(keys, m.settings.ShortHelp()...)
 	} else {
 		keys = append(keys, m.table.ShortHelp()...)
+		keys = append(keys, m.keys.Settings)
 	}
 	keys = append(keys, m.keys.Quit)
 	return keys
@@ -104,6 +105,7 @@ func (m App) FullHelp() [][]key.Binding {
 		keys = append(keys, m.settings.FullHelp()...)
 	} else {
 		keys = append(keys, m.table.FullHelp()...)
+		keys = append(keys, []key.Binding{m.keys.Settings})
 	}
 	keys = append(keys, []key.Binding{m.keys.Help, m.keys.Quit})
 	return keys
