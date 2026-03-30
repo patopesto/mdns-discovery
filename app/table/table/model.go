@@ -8,7 +8,6 @@ import (
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 	lg "charm.land/lipgloss/v2"
-	"github.com/mattn/go-runewidth"
 )
 
 // Model is the internal table model implementing tea.Model
@@ -25,7 +24,8 @@ type Model struct {
 	horizontalScroll int // horizontal scroll offset
 
 	// Control
-	Keys KeyMap
+	Keys   KeyMap
+	Styles Styles
 
 	// Focus and state
 	focused            bool
@@ -65,6 +65,7 @@ func New(columns []Column) Model {
 		cursor:            0,
 		highlightedRow:    0,
 		Keys:              DefaultKeyMap,
+		Styles:            DefaultStyles(),
 		filterInput:       ti,
 		filtered:          false,
 		filterText:        "",
@@ -86,30 +87,6 @@ func (m Model) Focused(focused bool) Model {
 // Filtered enables/disables filtering
 func (m Model) Filtered(filtered bool) Model {
 	m.filtered = filtered
-	return m
-}
-
-// WithBaseStyle sets the base style
-func (m Model) WithBaseStyle(style lg.Style) Model {
-	m.baseStyle = style
-	return m
-}
-
-// HeaderStyle sets the header style
-func (m Model) HeaderStyle(style lg.Style) Model {
-	m.headerStyle = style
-	return m
-}
-
-// HighlightStyle sets the highlight style
-func (m Model) HighlightStyle(style lg.Style) Model {
-	m.highlightStyle = style
-	return m
-}
-
-// FilterPromptStyle sets the filter prompt style
-func (m Model) FilterPromptStyle(style lg.Style) Model {
-	m.filterPromptStyle = style
 	return m
 }
 
@@ -312,14 +289,14 @@ func (m Model) View() string {
 	if m.width == 0 || m.height == 0 {
 		return ""
 	}
-
+	var s = &m.Styles
 	var sections []string
 
 	// Header row
 	headerView := m.renderHeader()
 	sections = append(sections, headerView)
 
-	m.innerHeight = m.height - lg.Height(headerView) - m.baseStyle.GetHorizontalFrameSize()
+	m.innerHeight = m.height - lg.Height(headerView) - m.Styles.Base.GetHorizontalFrameSize()
 
 	var footer string
 	if m.isFooterActive() {
@@ -345,22 +322,22 @@ func (m Model) View() string {
 		sections...,
 	)
 
-	return m.baseStyle.Render(view)
+	return s.Base.Render(view)
 }
 
 // renderHeader renders the column headers
 func (m Model) renderHeader() string {
+	var s = &m.Styles
 	var cells []string
 
 	for _, col := range m.columns {
 		width := col.width
-		title := truncate(col.Title(), width)
-		// cell := m.headerStyle.Width(width).Render(padRight(title, width))
-		cell := m.headerStyle.Width(width).Render(title)
+		title := truncate(col.Title(), width, s.HeaderCell)
+		cell := s.HeaderCell.Width(width).Render(title)
 		cells = append(cells, cell)
 	}
 
-	return strings.Join(cells, "")
+	return s.Header.Render(strings.Join(cells, ""))
 }
 
 func (m Model) isFooterActive() bool {
@@ -372,18 +349,21 @@ func (m Model) isFooterActive() bool {
 
 // renderFooter renders the filter input
 func (m Model) renderFooter() string {
+	var s = &m.Styles
+	var footer string
 	if m.filterInputFocused {
-		return m.filterInput.View()
+		footer = m.filterInput.View()
 	}
 	if m.filterText != "" {
-		return m.filterPromptStyle.Render("/" + m.filterText)
+		footer = m.filterPromptStyle.Render("/" + m.filterText)
 	}
-	return ""
+
+	return s.Footer.Render(footer)
 }
 
 // renderRows renders the data rows
 func (m Model) renderRows() string {
-	var rowStrings []string
+	var rows []string
 
 	// Calculate visible row range
 	startIdx := 0
@@ -408,31 +388,38 @@ func (m Model) renderRows() string {
 	for i := startIdx; i < endIdx; i++ {
 		row := m.rows[i]
 		rowStr := m.renderRow(row, i == m.cursor)
-		rowStrings = append(rowStrings, rowStr)
+		rows = append(rows, rowStr)
 	}
 
-	return strings.Join(rowStrings, "\n")
+	return strings.Join(rows, "\n")
 }
 
 // renderRow renders a single row
 func (m Model) renderRow(row Row, isSelected bool) string {
+	var s = &m.Styles
 	var cells []string
 
 	for _, col := range m.columns {
-		width := col.width
-		value := row.GetString(col.Key())
-		value = truncate(value, width)
-
-		cellStyle := lg.NewStyle().Width(width)
-		if isSelected {
-			cellStyle = m.highlightStyle.Width(width)
+		style := s.RowCell
+		if col.isStyled {
+			style = col.style
 		}
 
-		cell := cellStyle.Render(value)
+		value := row.GetString(col.Key())
+		value = truncate(value, col.width, style)
+
+		cell := style.Width(col.width).Render(value)
 		cells = append(cells, cell)
 	}
 
-	return strings.Join(cells, "")
+	var rowStr string
+	if isSelected {
+		rowStr = s.Selected.Render(strings.Join(cells, ""))
+	} else {
+		rowStr = s.Row.Render(strings.Join(cells, ""))
+	}
+
+	return rowStr
 }
 
 // renderRow renders a single empty row (for padding)
@@ -441,11 +428,7 @@ func (m Model) renderEmptyRows(num int) string {
 	var rows []string
 
 	for _, col := range m.columns {
-		width := col.width
-		value := ""
-
-		cellStyle := lg.NewStyle().Width(width)
-		cell := cellStyle.Render(value)
+		cell := lg.NewStyle().Width(col.width).Render("")
 		cells = append(cells, cell)
 	}
 	row := strings.Join(cells, "")
@@ -464,7 +447,7 @@ func (m Model) calculateColumnWidths() {
 	}
 
 	// Account for borders, etc if present
-	availableWidth := m.width - m.baseStyle.GetVerticalFrameSize()
+	availableWidth := m.width - m.Styles.Base.GetVerticalFrameSize()
 
 	// Calculate total flex and fixed widths
 	totalFlex := 0
@@ -512,35 +495,25 @@ func (m Model) calculateColumnWidths() {
 	}
 }
 
-// truncate truncates a string to fit within maxWidth
-func truncate(s string, maxWidth int) string {
+// truncate truncates a string to fit within maxWidth accounting for style
+func truncate(s string, maxWidth int, style lg.Style) string {
 	if maxWidth <= 0 {
 		return ""
 	}
 
-	width := runewidth.StringWidth(s)
-	if width <= maxWidth {
+	width := lg.Width(s)
+	availableWidth := maxWidth - style.GetHorizontalFrameSize()
+	if width <= availableWidth {
 		return s
 	}
 
-	// Need to truncate - use runes for Unicode safety
-	runes := []rune(s)
-	var result strings.Builder
-	currentWidth := 0
-
-	for _, r := range runes {
-		rw := runewidth.RuneWidth(r)
-		if currentWidth+rw > maxWidth-1 {
-			break
-		}
-		result.WriteRune(r)
-		currentWidth += rw
+	var truncated string
+	if style.GetAlign() == lg.Right {
+		safeWidth := width - availableWidth
+		truncated = "…" + s[safeWidth+1:]
+	} else {
+		truncated = s[0:maxWidth-1] + "…"
 	}
 
-	// Add ellipsis if we truncated
-	if currentWidth < width {
-		return result.String() + "…"
-	}
-
-	return result.String()
+	return truncated
 }

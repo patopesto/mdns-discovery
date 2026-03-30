@@ -40,8 +40,7 @@ type App struct {
 }
 
 func NewApp(ifaces []string, domains []string) *App {
-	table := table.New().
-		WithStyles(common.DefaultStyles.Table.Base, common.DefaultStyles.Table.Header, common.DefaultStyles.Table.Highlighted)
+	table := table.New()
 
 	help := help.New()
 	help.ShortSeparator = "  •  "

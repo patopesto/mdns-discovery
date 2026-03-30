@@ -10,6 +10,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	lg "charm.land/lipgloss/v2"
 
+	"gitlab.com/patopest/mdns-discovery/app/common"
 	"gitlab.com/patopest/mdns-discovery/app/table/table"
 	"gitlab.com/patopest/mdns-discovery/network"
 )
@@ -37,12 +38,16 @@ func New() Model {
 		table.NewFlexColumn("domain", "Domain", 6).WithFiltered(true),
 		table.NewFlexColumn("hostname", "Hostname", 18).WithFiltered(true),
 		table.NewColumn("ip", "IP", 15).WithFiltered(true).WithSortFunc(SortIPs),
-		table.NewColumn("port", "Port", 6).WithFiltered(true),
+		table.NewColumn("port", "Port", 6).WithFiltered(true).WithStyle(lg.NewStyle().Align(lg.Right).PaddingRight(1)),
 		table.NewFlexColumn("info", "Info", 20).WithFiltered(true),
 	}
 
 	table := table.New(columns).Focused(true).Filtered(true)
 	table.Keys = TableKeyMap.KeyMap
+	var styles = &common.DefaultStyles.Table
+	table.Styles.Base = styles.Base
+	table.Styles.Header = styles.Header
+	table.Styles.Selected = styles.Selected
 
 	return Model{
 		model:           table,
@@ -51,14 +56,6 @@ func New() Model {
 		sortedDirection: SortedNone,
 		Keys:            TableKeyMap,
 	}
-}
-
-// WithStyles sets the styles on the underlying table model
-func (m Model) WithStyles(baseStyle, headerStyle, highlightStyle lg.Style) Model {
-	m.model = m.model.WithBaseStyle(baseStyle).
-		HeaderStyle(headerStyle).
-		HighlightStyle(highlightStyle)
-	return m
 }
 
 // UpdateColumns updates the column definitions

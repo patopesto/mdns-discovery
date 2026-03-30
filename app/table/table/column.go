@@ -1,5 +1,9 @@
 package table
 
+import (
+	lg "charm.land/lipgloss/v2"
+)
+
 // SortFunc is a user-configurable sort function for a column.
 // It receives two values and should return:
 //   - a negative number if a < b
@@ -16,6 +20,8 @@ type Column struct {
 	isFlex     bool
 	filterable bool
 	sortFunc   SortFunc
+	style      lg.Style
+	isStyled   bool
 }
 
 // NewColumn creates a new fixed-width column
@@ -53,6 +59,13 @@ func (c Column) WithTitle(title string) Column {
 // WithSortFunc sets a custom sort function for this column
 func (c Column) WithSortFunc(fn SortFunc) Column {
 	c.sortFunc = fn
+	return c
+}
+
+// WithStyle sets a custom style to the cells of this column (overiding Styles.RowCell)
+func (c Column) WithStyle(style lg.Style) Column {
+	c.style = style
+	c.isStyled = true
 	return c
 }
 

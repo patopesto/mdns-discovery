@@ -35,9 +35,9 @@ type Styles struct {
 	}
 
 	Table struct {
-		Base        lg.Style
-		Header      lg.Style
-		Highlighted lg.Style
+		Base     lg.Style
+		Header   lg.Style
+		Selected lg.Style
 	}
 
 	Settings struct {
@@ -48,18 +48,6 @@ type Styles struct {
 		Base lg.Style
 		Help lg.Style
 	}
-
-	NormalTitle lg.Style
-	NormalDesc  lg.Style
-
-	SelectedTitle lg.Style
-	SelectedDesc  lg.Style
-
-	NormalItem   lg.Style
-	SelectedItem lg.Style
-
-	EnabledItem  lg.Style
-	DisabledItem lg.Style
 }
 
 func NewStyles() (s Styles) {
@@ -105,11 +93,13 @@ func NewStyles() (s Styles) {
 		Align(lg.Left)
 
 	s.Table.Header = lg.NewStyle().
+		Border(lg.RoundedBorder(), false, false, true, false).
+		BorderForeground(s.Color.Grey75).
 		Foreground(s.Color.Mid).
 		Bold(true).
 		Align(lg.Left)
 
-	s.Table.Highlighted = lg.NewStyle().
+	s.Table.Selected = lg.NewStyle().
 		Background(s.Color.Lowlight).
 		Foreground(lg.Color("255"))
 		// Bold(true)
@@ -117,7 +107,7 @@ func NewStyles() (s Styles) {
 	s.Settings.Base = lg.NewStyle()
 
 	s.Footer.Base = lg.NewStyle().
-		Padding(0, 2)
+		Padding(1, 2)
 
 	s.Footer.Help = lg.NewStyle().
 		Foreground(s.Color.Bottom)
