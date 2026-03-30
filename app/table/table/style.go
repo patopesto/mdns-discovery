@@ -24,6 +24,10 @@ type Styles struct {
 
 	// Style applied to runes matching filter
 	FilterMatch lg.Style
+
+	// Style applied to filter input
+	FilterInputFocused lg.Style
+	FilterInputBlurred lg.Style
 }
 
 func DefaultStyles() (s Styles) {
@@ -37,7 +41,10 @@ func DefaultStyles() (s Styles) {
 	s.RowCell = lg.NewStyle()
 
 	s.Footer = lg.NewStyle()
+
 	s.FilterMatch = lg.NewStyle()
+	s.FilterInputFocused = lg.NewStyle()
+	s.FilterInputBlurred = lg.NewStyle()
 
 	return s
 }

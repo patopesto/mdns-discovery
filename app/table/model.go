@@ -47,7 +47,11 @@ func New() Model {
 	var styles = &common.DefaultStyles.Table
 	table.Styles.Base = styles.Base
 	table.Styles.Header = styles.Header
+	table.Styles.Row = styles.Row
 	table.Styles.Selected = styles.Selected
+	table.Styles.FilterMatch = styles.FilterMatch
+	table.Styles.FilterInputFocused = styles.FilterInputFocused
+	table.Styles.FilterInputBlurred = styles.FilterInputBlurred
 
 	return Model{
 		model:           table,

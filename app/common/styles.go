@@ -35,9 +35,13 @@ type Styles struct {
 	}
 
 	Table struct {
-		Base     lg.Style
-		Header   lg.Style
-		Selected lg.Style
+		Base               lg.Style
+		Header             lg.Style
+		Row                lg.Style
+		Selected           lg.Style
+		FilterMatch        lg.Style
+		FilterInputFocused lg.Style
+		FilterInputBlurred lg.Style
 	}
 
 	Settings struct {
@@ -89,7 +93,6 @@ func NewStyles() (s Styles) {
 	s.Table.Base = lg.NewStyle().
 		BorderStyle(lg.RoundedBorder()).
 		BorderForeground(s.Color.Grey75).
-		Foreground(s.Color.Text).
 		Align(lg.Left)
 
 	s.Table.Header = lg.NewStyle().
@@ -99,10 +102,21 @@ func NewStyles() (s Styles) {
 		Bold(true).
 		Align(lg.Left)
 
-	s.Table.Selected = lg.NewStyle().
+	s.Table.Row = lg.NewStyle().
+		Foreground(s.Color.Text)
+
+	s.Table.Selected = s.Table.Row.
 		Background(s.Color.Lowlight).
 		Foreground(lg.Color("255"))
-		// Bold(true)
+
+	s.Table.FilterMatch = lg.NewStyle().
+		Foreground(s.Color.Highlight)
+
+	s.Table.FilterInputFocused = lg.NewStyle().
+		Foreground(lg.Color("255"))
+
+	s.Table.FilterInputBlurred = lg.NewStyle().
+		Foreground(s.Color.Grey25)
 
 	s.Settings.Base = lg.NewStyle()
 

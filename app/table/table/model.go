@@ -34,19 +34,13 @@ type Model struct {
 	filterInputFocused bool
 
 	// Filtering
-	filterInput textinput.Model
-	filtered    bool
-	filterText  string
+	filteringEnabled bool
+	filterInput      textinput.Model
+	filterText       string
 
 	// Sorting
 	sortColumn string
 	sortAsc    bool
-
-	// Styles
-	baseStyle         lg.Style
-	headerStyle       lg.Style
-	highlightStyle    lg.Style
-	filterPromptStyle lg.Style
 }
 
 // New creates a new table model with the given columns
@@ -57,24 +51,20 @@ func New(columns []Column) Model {
 	ti.SetWidth(30)
 
 	return Model{
-		columns:           columns,
-		rows:              []Row{},
-		allRows:           []Row{},
-		horizontalScroll:  0,
-		focused:           true,
-		cursor:            0,
-		highlightedRow:    0,
-		Keys:              DefaultKeyMap,
-		Styles:            DefaultStyles(),
-		filterInput:       ti,
-		filtered:          false,
-		filterText:        "",
-		sortColumn:        "",
-		sortAsc:           true,
-		baseStyle:         lg.NewStyle(),
-		headerStyle:       lg.NewStyle().Bold(true),
-		highlightStyle:    lg.NewStyle().Reverse(true),
-		filterPromptStyle: lg.NewStyle().Foreground(lg.Color("240")),
+		columns:          columns,
+		rows:             []Row{},
+		allRows:          []Row{},
+		horizontalScroll: 0,
+		focused:          true,
+		cursor:           0,
+		highlightedRow:   0,
+		Keys:             DefaultKeyMap,
+		Styles:           DefaultStyles(),
+		filterInput:      ti,
+		filteringEnabled: false,
+		filterText:       "",
+		sortColumn:       "",
+		sortAsc:          true,
 	}
 }
 
@@ -86,14 +76,13 @@ func (m Model) Focused(focused bool) Model {
 
 // Filtered enables/disables filtering
 func (m Model) Filtered(filtered bool) Model {
-	m.filtered = filtered
+	m.filteringEnabled = filtered
 	return m
 }
 
 // WithRows sets the table rows
 func (m Model) WithRows(rows []Row) Model {
 	m.allRows = rows
-	m.applyFilterAndSort()
 	return m
 }
 
@@ -152,7 +141,7 @@ func (m *Model) applyFilterAndSort() {
 	// First filter
 	filtered := make([]Row, len(m.allRows))
 	copy(filtered, m.allRows)
-	if m.filtered && m.filterText != "" {
+	if m.filteringEnabled && m.filterText != "" {
 		filtered = m.filterRows(m.allRows, m.filterText)
 	}
 
@@ -263,14 +252,14 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				}
 			case key.Matches(msg, m.Keys.Right):
 				m.horizontalScroll += 5
-			case key.Matches(msg, m.Keys.Filter) && m.filtered:
+			case key.Matches(msg, m.Keys.Filter) && m.filteringEnabled:
 				m.filterInputFocused = true
 				m.filterInput.Focus()
 				cmd = textinput.Blink
 				cmds = append(cmds, cmd)
 			case key.Matches(msg, m.Keys.FilterClear):
 				m.filterText = ""
-				m.filterInput.SetValue("")
+				m.filterInput.Reset()
 				m.applyFilterAndSort()
 			}
 		}
@@ -341,7 +330,7 @@ func (m Model) renderHeader() string {
 }
 
 func (m Model) isFooterActive() bool {
-	if m.filtered {
+	if m.filteringEnabled {
 		return m.filterInputFocused || m.filterText != ""
 	}
 	return false
@@ -351,11 +340,11 @@ func (m Model) isFooterActive() bool {
 func (m Model) renderFooter() string {
 	var s = &m.Styles
 	var footer string
+
 	if m.filterInputFocused {
-		footer = m.filterInput.View()
-	}
-	if m.filterText != "" {
-		footer = m.filterPromptStyle.Render("/" + m.filterText)
+		footer = s.FilterInputFocused.Render(m.filterInput.View())
+	} else if m.filterText != "" {
+		footer = s.FilterInputBlurred.Render("/" + m.filterText)
 	}
 
 	return s.Footer.Render(footer)
@@ -412,12 +401,27 @@ func (m Model) renderRow(row Row, isSelected bool) string {
 		cells = append(cells, cell)
 	}
 
-	var rowStr string
+	var style = s.Row
 	if isSelected {
-		rowStr = s.Selected.Render(strings.Join(cells, ""))
-	} else {
-		rowStr = s.Row.Render(strings.Join(cells, ""))
+		style = s.Selected
 	}
+	rowStr := strings.Join(cells, "")
+
+	if m.filterText != "" {
+		start := strings.Index(strings.ToLower(rowStr), m.filterText)
+		if start >= 0 {
+			end := start + len(m.filterText)
+			var indices []int
+			for i := start; i < end; i++ {
+				indices = append(indices, i)
+			}
+			unmatched := style.Inline(true)
+			matched := s.FilterMatch.Inherit(unmatched)
+			rowStr = lg.StyleRunes(rowStr, indices, matched, unmatched)
+		}
+	}
+
+	rowStr = style.Render(rowStr)
 
 	return rowStr
 }
