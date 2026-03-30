@@ -32,7 +32,7 @@ func (m *Model) FullHelp() [][]key.Binding {
 }
 
 var SettingsKeyMap = keyMap{
-	KeyMap: list.KeyMap {
+	KeyMap: list.KeyMap{
 		CursorUp:   common.DefaultKeyMap.Up,
 		CursorDown: common.DefaultKeyMap.Down,
 	},
@@ -41,5 +41,5 @@ var SettingsKeyMap = keyMap{
 	Down: common.DefaultKeyMap.Down,
 
 	Select: common.DefaultKeyMap.Select,
-	Close: common.DefaultKeyMap.Close,
+	Close:  common.DefaultKeyMap.Close,
 }

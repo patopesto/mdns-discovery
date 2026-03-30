@@ -2,11 +2,13 @@ package app
 
 import (
 	"reflect"
+	"strings"
 
-	tea "charm.land/bubbletea/v2"
-	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/help"
+	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/spinner"
+	tea "charm.land/bubbletea/v2"
+	lg "charm.land/lipgloss/v2"
 
 	"gitlab.com/patopest/mdns-discovery/app/common"
 	"gitlab.com/patopest/mdns-discovery/app/settings"
@@ -18,38 +20,37 @@ const APP_TITLE string = "mDNS Discovery"
 
 type App struct {
 	// data
-	discovery network.Discovery
-	data      []network.ServiceEntry
-	entriesCh chan network.ServiceEntry
+	discovery    network.Discovery
+	data         []network.ServiceEntry
+	entriesCh    chan network.ServiceEntry
+	showSettings bool
 
 	// table component
-	table table.Model
+	table    table.Model
+	settings *settings.Model
+	spinner  spinner.Model
+	help     help.Model
 
-	keys    common.KeyMap
-	help    help.Model
-	spinner spinner.Model
-
-	// Window dimensions
+	// dimensions
 	totalWidth  int
 	totalHeight int
 
-	// Interface selector
-	showSettings bool
-	settings     *settings.Model
+	keys   common.KeyMap
+	styles common.Styles
 }
 
 func NewApp(ifaces []string, domains []string) *App {
 	table := table.New().
-		WithStyles(tableBaseStyle, tableHeaderStyle, tableHighlightedRowStyle)
+		WithStyles(common.DefaultStyles.Table.Base, common.DefaultStyles.Table.Header, common.DefaultStyles.Table.Highlighted)
 
 	help := help.New()
 	help.ShortSeparator = "  •  "
-	help.Styles.ShortKey = helpKeyStyle
-	help.Styles.FullKey = helpKeyStyle
+	help.Styles.ShortKey = common.DefaultStyles.Footer.Help
+	help.Styles.FullKey = common.DefaultStyles.Footer.Help
 
-	s := spinner.New()
-	s.Spinner = spinner.Dot
-	s.Style = spinnerStyle
+	spin := spinner.New()
+	spin.Spinner = spinner.Dot
+	spin.Style = common.DefaultStyles.Header.Spinner
 
 	// Create the entries channel
 	entriesCh := make(chan network.ServiceEntry, 30)
@@ -58,13 +59,14 @@ func NewApp(ifaces []string, domains []string) *App {
 
 	app := &App{
 		discovery:    discovery,
-		table:        table,
-		help:         help,
-		keys:         common.DefaultKeyMap,
-		spinner:      s,
 		entriesCh:    entriesCh,
 		showSettings: false,
+		table:        table,
 		settings:     settings,
+		spinner:      spin,
+		help:         help,
+		keys:         common.DefaultKeyMap,
+		styles:       common.DefaultStyles,
 	}
 
 	return app
@@ -170,4 +172,99 @@ func (m *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	return m, tea.Batch(cmds...)
+}
+
+// Implement tea.Model interface
+func (m *App) View() tea.View {
+	var s = &m.styles
+
+	header := m.viewHeader()
+	footer := m.viewFooter()
+
+	// Compute height of all elements to send to component
+	headerHeight := lg.Height(header)
+	footerHeight := lg.Height(footer)
+	innerHeight := m.totalHeight - headerHeight - footerHeight
+
+	var mainView string
+	if m.showSettings {
+		m.settings.SetSize(m.totalWidth, innerHeight)
+		mainView = s.Settings.Base.Render(m.settings.View())
+		mainView = lg.Place(m.totalWidth, innerHeight, lg.Center, lg.Center, mainView)
+	} else {
+		m.table.SetSize(m.totalWidth, innerHeight)
+		mainView = m.table.View()
+	}
+
+	content := lg.JoinVertical(
+		lg.Left,
+		header,
+		mainView,
+		footer,
+	)
+
+	view := tea.NewView(s.Base.Render(content))
+	view.AltScreen = true
+	view.WindowTitle = APP_TITLE
+	return view
+}
+
+func (m *App) viewHeader() string {
+	var s = &m.styles
+
+	title := s.Header.Title.Render(APP_TITLE)
+	spinner := m.spinner.View()
+	itfs := strings.Builder{}
+	itfs.WriteString("interfaces ")
+	for _, itf := range m.discovery.Interfaces {
+		s := s.Header.Interface.Render(itf.Name)
+		itfs.WriteString(s)
+	}
+	interfaces := s.Header.Interfaces.Render(itfs.String())
+
+	spacerWidth := m.totalWidth - lg.Width(spinner) - lg.Width(title) - lg.Width(interfaces) - s.Header.Base.GetHorizontalPadding()
+
+	header := lg.JoinHorizontal(
+		lg.Center,
+		spinner,
+		title,
+		lg.NewStyle().Width(spacerWidth).Render(""),
+		interfaces,
+	)
+
+	return s.Header.Base.Render(header)
+}
+
+func (m *App) viewFooter() string {
+	var s = &m.styles
+
+	footer := m.help.View(m)
+
+	return s.Footer.Base.Render(footer)
+}
+
+// Implements help.KeyMap interface
+func (m App) ShortHelp() []key.Binding {
+	keys := []key.Binding{m.keys.Help}
+	if m.showSettings {
+		keys = append(keys, m.settings.ShortHelp()...)
+	} else {
+		keys = append(keys, m.table.ShortHelp()...)
+		keys = append(keys, m.keys.Settings)
+	}
+	keys = append(keys, m.keys.Quit)
+	return keys
+}
+
+// Implements help.KeyMap interface
+func (m App) FullHelp() [][]key.Binding {
+	var keys [][]key.Binding
+	if m.showSettings {
+		keys = append(keys, m.settings.FullHelp()...)
+	} else {
+		keys = append(keys, m.table.FullHelp()...)
+		keys = append(keys, []key.Binding{m.keys.Settings})
+	}
+	keys = append(keys, []key.Binding{m.keys.Help, m.keys.Quit})
+	return keys
 }

@@ -10,14 +10,13 @@ import (
 type KeyMap struct {
 	table.KeyMap
 
-	Sort key.Binding // fake key only for description purposes (in help)
+	Sort         key.Binding // fake key only for description purposes (in help)
 	SortName     key.Binding
 	SortService  key.Binding
 	SortDomain   key.Binding
 	SortHostname key.Binding
 	SortIp       key.Binding
 	SortPort     key.Binding
-
 }
 
 // Implements help.KeyMap interface
@@ -59,16 +58,16 @@ var TableKeyMap = KeyMap{
 		Left:  common.DefaultKeyMap.Left,
 		Right: common.DefaultKeyMap.Right,
 
-		Filter: common.DefaultKeyMap.Filter,
-		FilterBlur: common.DefaultKeyMap.FilterBlur,
+		Filter:      common.DefaultKeyMap.Filter,
+		FilterBlur:  common.DefaultKeyMap.FilterBlur,
 		FilterClear: common.DefaultKeyMap.FilterClear,
 	},
 
-	Sort: common.DefaultKeyMap.Sort,
-	SortName: common.DefaultKeyMap.SortName,
-	SortService: common.DefaultKeyMap.SortService,
-	SortDomain: common.DefaultKeyMap.SortDomain,
+	Sort:         common.DefaultKeyMap.Sort,
+	SortName:     common.DefaultKeyMap.SortName,
+	SortService:  common.DefaultKeyMap.SortService,
+	SortDomain:   common.DefaultKeyMap.SortDomain,
 	SortHostname: common.DefaultKeyMap.SortHostname,
-	SortIp: common.DefaultKeyMap.SortIp,
-	SortPort: common.DefaultKeyMap.SortPort,
+	SortIp:       common.DefaultKeyMap.SortIp,
+	SortPort:     common.DefaultKeyMap.SortPort,
 }

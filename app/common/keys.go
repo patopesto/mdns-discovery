@@ -12,7 +12,7 @@ type KeyMap struct {
 	Right key.Binding
 
 	// sorting (table)
-	Sort   key.Binding // fake key only for description purposes (in help)
+	Sort         key.Binding // fake key only for description purposes (in help)
 	SortName     key.Binding
 	SortService  key.Binding
 	SortDomain   key.Binding
@@ -21,14 +21,14 @@ type KeyMap struct {
 	SortPort     key.Binding
 
 	// fitlering (table)
-	Filter key.Binding
+	Filter      key.Binding
 	FilterBlur  key.Binding
 	FilterClear key.Binding
 
 	// modes / settings / panes
 	Settings key.Binding
-	Select key.Binding
-	Close key.Binding
+	Select   key.Binding
+	Close    key.Binding
 
 	// other
 	Help key.Binding

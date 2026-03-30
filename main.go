@@ -6,11 +6,11 @@ import (
 	"io"
 	"log"
 	"os"
-	"strings"
+	"path/filepath"
 	"runtime"
 	"runtime/debug"
+	"strings"
 	"text/template"
-	"path/filepath"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/fang/v2"
@@ -44,7 +44,6 @@ func GetVersion() string {
 		"platform":  runtime.GOOS + "/" + runtime.GOARCH,
 	}
 
-
 	if buildInfo, ok := debug.ReadBuildInfo(); ok {
 		// info["version"] = buildInfo.Main.Version
 		dirty := false
@@ -69,7 +68,6 @@ func GetVersion() string {
 	tmpl.Execute(&buf, info)
 	return buf.String()
 }
-
 
 func main() {
 

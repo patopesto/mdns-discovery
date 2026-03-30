@@ -5,17 +5,20 @@ import (
 	"io"
 	"net"
 
-	tea "charm.land/bubbletea/v2"
-	lg "charm.land/lipgloss/v2"
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/list"
+	tea "charm.land/bubbletea/v2"
+	lg "charm.land/lipgloss/v2"
 
+	"gitlab.com/patopest/mdns-discovery/app/common"
 	"gitlab.com/patopest/mdns-discovery/network"
 )
 
 // Styles
 type Styles struct {
 	Base lg.Style
+
+	Title lg.Style
 
 	NormalTitle lg.Style
 	NormalDesc  lg.Style
@@ -25,41 +28,37 @@ type Styles struct {
 
 	NormalItem   lg.Style
 	SelectedItem lg.Style
-
-	EnabledItem  lg.Style
-	DisabledItem lg.Style
 }
 
 func NewStyles() (s Styles) {
+	var c = &common.DefaultStyles.Color
+
 	s.Base = lg.NewStyle().
 		Padding(0, 2)
 
+	s.Title = lg.NewStyle().
+		Foreground(c.Mid)
+
 	s.NormalTitle = lg.NewStyle().
-		Foreground(lg.Color("#dddddd")).
+		Foreground(c.Text).
 		Padding(0, 0, 0, 2)
 
 	s.NormalDesc = s.NormalTitle.
-		Foreground(lg.Color("#777777"))
+		Foreground(lg.Darken(c.Text, 0.5))
 
 	s.SelectedTitle = s.NormalTitle.
-		Foreground(lg.Color("#EE6FF8"))
+		Foreground(c.MidLow)
 
-	s.SelectedDesc = s.SelectedTitle.
-		Foreground(lg.Color("#AD58B4"))
+	s.SelectedDesc = s.NormalDesc.
+		Foreground(lg.Darken(c.MidLow, 0.30))
 
 	s.NormalItem = lg.NewStyle().
 		Padding(0, 0, 0, 2)
 
 	s.SelectedItem = s.NormalItem.
 		Border(lg.NormalBorder(), false, false, false, true).
-		BorderForeground(lg.Color("#AD58B4")).
+		BorderForeground(lg.Darken(c.MidLow, 0.30)).
 		Padding(0, 0, 0, 1)
-
-	s.EnabledItem = lg.NewStyle().
-		Foreground(lg.Color("202"))
-
-	s.DisabledItem = s.EnabledItem.
-		Foreground(lg.Color("240"))
 
 	return s
 }
@@ -100,18 +99,24 @@ func (d Delegate) Render(w io.Writer, m list.Model, index int, item list.Item) {
 
 	var checkbox string
 	if i.enabled {
-		checkbox = s.EnabledItem.Render("[✓]")
+		checkbox = "[✓]"
 	} else {
-		checkbox = s.DisabledItem.Render("[ ]")
+		checkbox = "[ ]"
 	}
 
 	title := i.Title()
 	desc := i.Description()
 
 	if index == m.Index() {
+		checkbox = s.SelectedTitle.UnsetPadding().Render(checkbox)
 		title = s.SelectedTitle.Render(title)
 		desc = s.SelectedDesc.Render(desc)
 	} else {
+		if i.enabled {
+			checkbox = s.NormalTitle.UnsetPadding().Render(checkbox)
+		} else {
+			checkbox = s.NormalDesc.UnsetPadding().Render(checkbox)
+		}
 		title = s.NormalTitle.Render(title)
 		desc = s.NormalDesc.Render(desc)
 	}
@@ -136,7 +141,9 @@ type Model struct {
 	discovery *network.Discovery
 
 	list list.Model
-	Keys keyMap
+
+	Keys   keyMap
+	Styles Styles
 }
 
 // New creates a new interface selector
@@ -159,10 +166,14 @@ func New(discovery *network.Discovery) *Model {
 		})
 	}
 
+	styles := NewStyles()
+
 	delegate := NewDelegate()
+	delegate.Styles = styles
 	l := list.New(items, delegate, 0, 0)
 	l.Title = "Select network interfaces"
 	l.KeyMap = SettingsKeyMap.KeyMap
+	l.Styles.Title = styles.Title
 	l.SetShowHelp(false)
 	l.SetShowTitle(true)
 	l.SetShowFilter(false)
@@ -174,6 +185,7 @@ func New(discovery *network.Discovery) *Model {
 		discovery: discovery,
 		list:      l,
 		Keys:      SettingsKeyMap,
+		Styles:    styles,
 	}
 }
 
