@@ -83,6 +83,7 @@ func (m Model) Filtered(filtered bool) Model {
 // WithRows sets the table rows
 func (m Model) WithRows(rows []Row) Model {
 	m.allRows = rows
+	m.applyFilterAndSort()
 	return m
 }
 
@@ -143,6 +144,10 @@ func (m *Model) applyFilterAndSort() {
 	copy(filtered, m.allRows)
 	if m.filteringEnabled && m.filterText != "" {
 		filtered = m.filterRows(m.allRows, m.filterText)
+	} else {
+		for i := range filtered {
+			filtered[i].MatchCache = MatchInfo{}
+		}
 	}
 
 	// Then sort
@@ -201,14 +206,25 @@ func (m *Model) filterRows(rows []Row, search string) []Row {
 	searchLower := strings.ToLower(search)
 
 	for _, row := range rows {
+		matchInfo := MatchInfo{CellMatches: make(map[string][]int)}
+
 		for _, col := range m.columns {
 			if col.IsFilterable() {
 				val := row.GetSortValue(col.Key())
-				if strings.Contains(val, searchLower) {
-					filtered = append(filtered, row)
-					break
+				if idx := strings.Index(val, searchLower); idx >= 0 {
+					var indices []int
+					for i := idx; i < idx + len(search); i++ {
+						indices = append(indices, i)
+					}
+					matchInfo.CellMatches[col.Key()] = indices
+					matchInfo.HasMatch = true
 				}
 			}
+		}
+
+		row.MatchCache = matchInfo
+		if matchInfo.HasMatch == true {
+			filtered = append(filtered, row)
 		}
 	}
 
@@ -346,7 +362,7 @@ func (m Model) renderFooter() string {
 	if m.filterInputFocused {
 		footer = s.FilterInputFocused.Render(m.filterInput.View())
 	} else if m.filterText != "" {
-		footer = s.FilterInputBlurred.Render("/" + m.filterText)
+		footer = s.FilterInputBlurred.Render("/ " + m.filterText)
 	}
 
 	return s.Footer.Width(width).Render(footer)
@@ -393,39 +409,33 @@ func (m Model) renderRow(row Row, isSelected bool) string {
 	for _, col := range m.columns {
 		style := s.RowCell
 		if col.isStyled {
-			style = col.style
+			style = col.style.Inherit(style)
+		}
+		if isSelected {
+			style = style.Inherit(s.Selected)
 		}
 
 		value := row.GetString(col.Key())
 		value = truncate(value, col.width, style)
 
+		// Check if this cell has a cached filter match
+		if row.MatchCache.HasMatch {
+			if matchRange, ok := row.MatchCache.CellMatches[col.Key()]; ok {
+				unmatched := style.Inline(true)
+				matched := s.FilterMatch.Inherit(unmatched)
+				styledValue := lg.StyleRunes(value, matchRange, matched, unmatched)
+
+				cell := style.Width(col.width).Render(styledValue)
+				cells = append(cells, cell)
+				continue
+			}
+		}
+
 		cell := style.Width(col.width).Render(value)
 		cells = append(cells, cell)
 	}
 
-	var style = s.Row
-	if isSelected {
-		style = s.Selected
-	}
-	rowStr := strings.Join(cells, "")
-
-	if m.filterText != "" {
-		start := strings.Index(strings.ToLower(rowStr), m.filterText)
-		if start >= 0 {
-			end := start + len(m.filterText)
-			var indices []int
-			for i := start; i < end; i++ {
-				indices = append(indices, i)
-			}
-			unmatched := style.Inline(true)
-			matched := s.FilterMatch.Inherit(unmatched)
-			rowStr = lg.StyleRunes(rowStr, indices, matched, unmatched)
-		}
-	}
-
-	rowStr = style.Render(rowStr)
-
-	return rowStr
+	return s.Row.Render(strings.Join(cells, ""))
 }
 
 // renderRow renders a single empty row (for padding)
@@ -512,13 +522,16 @@ func truncate(s string, maxWidth int, style lg.Style) string {
 	if width <= availableWidth {
 		return s
 	}
+	if availableWidth <= 0 {
+		return ""
+	}
 
 	var truncated string
 	if style.GetAlign() == lg.Right {
 		safeWidth := width - availableWidth
 		truncated = "…" + s[safeWidth+1:]
 	} else {
-		truncated = s[0:maxWidth-1] + "…"
+		truncated = s[0:availableWidth-1] + "…"
 	}
 
 	return truncated

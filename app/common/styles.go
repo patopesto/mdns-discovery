@@ -39,6 +39,7 @@ type Styles struct {
 		Base               lg.Style
 		Header             lg.Style
 		Row                lg.Style
+		RowCell            lg.Style
 		Selected           lg.Style
 		FilterMatch        lg.Style
 		FilterInputFocused lg.Style
@@ -105,8 +106,11 @@ func NewStyles() (s Styles) {
 		Bold(true).
 		Align(lg.Left)
 
-	s.Table.Row = lg.NewStyle().
-		Foreground(s.Color.Text)
+	s.Table.Row = lg.NewStyle()
+
+	s.Table.RowCell = lg.NewStyle().
+		Foreground(s.Color.Text).
+		PaddingRight(1)
 
 	s.Table.Selected = s.Table.Row.
 		Background(s.Color.Lowlight).

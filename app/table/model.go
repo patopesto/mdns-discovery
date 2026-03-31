@@ -32,6 +32,8 @@ type Model struct {
 
 // NewModel creates a new table wrapper with predefined columns
 func New() Model {
+	var styles = &common.DefaultStyles.Table
+
 	columns := []table.Column{
 		table.NewFlexColumn("name", "Name", 20).WithFiltered(true),
 		table.NewFlexColumn("service", "Service", 18).WithFiltered(true),
@@ -39,15 +41,15 @@ func New() Model {
 		table.NewFlexColumn("hostname", "Hostname", 18).WithFiltered(true),
 		table.NewColumn("ip", "IP", 15).WithFiltered(true).WithSortFunc(SortIPs),
 		table.NewColumn("port", "Port", 6).WithFiltered(true).WithStyle(lg.NewStyle().Align(lg.Right).PaddingRight(1)),
-		table.NewFlexColumn("info", "Info", 20).WithFiltered(true),
+		table.NewFlexColumn("info", "Info", 20).WithFiltered(true).WithStyle(styles.RowCell.UnsetPadding()),
 	}
 
 	table := table.New(columns).Focused(true).Filtered(true)
 	table.Keys = TableKeyMap.KeyMap
-	var styles = &common.DefaultStyles.Table
 	table.Styles.Base = styles.Base
 	table.Styles.Header = styles.Header
 	table.Styles.Row = styles.Row
+	table.Styles.RowCell = styles.RowCell
 	table.Styles.Selected = styles.Selected
 	table.Styles.FilterMatch = styles.FilterMatch
 	table.Styles.FilterInputFocused = styles.FilterInputFocused
@@ -196,6 +198,7 @@ func (m *Model) SetMinimumHeight(height int) {
 	m.model = m.model.WithMinimumHeight(height)
 }
 
+// SortIPs is a special sort function to sort the net.IP of the "ip" column
 func SortIPs(a, b interface{}) int {
 	ipA := a.(net.IP)
 	ipB := b.(net.IP)

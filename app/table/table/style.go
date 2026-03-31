@@ -13,11 +13,12 @@ type Styles struct {
 	// Style applied to each header row cell
 	HeaderCell lg.Style
 
-	// Style applied to each row (unless row is selected)
+	// Style applied to each row
 	Row      lg.Style
-	Selected lg.Style
-	// Style applied to each cell
+	// Style applied to each row cell
 	RowCell lg.Style
+	// Additional style applied to each cell of the selected row
+	Selected lg.Style
 
 	// Style applied to footer
 	Footer lg.Style
