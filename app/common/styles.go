@@ -21,6 +21,7 @@ type Styles struct {
 		Grey25 color.Color
 		Grey50 color.Color
 		Grey75 color.Color
+		Grey90 color.Color
 	}
 
 	// Styles
@@ -42,6 +43,7 @@ type Styles struct {
 		FilterMatch        lg.Style
 		FilterInputFocused lg.Style
 		FilterInputBlurred lg.Style
+		Footer             lg.Style
 	}
 
 	Settings struct {
@@ -68,6 +70,7 @@ func NewStyles() (s Styles) {
 	s.Color.Grey25 = lg.Color("250")
 	s.Color.Grey50 = lg.Color("244")
 	s.Color.Grey75 = lg.Color("239")
+	s.Color.Grey90 = lg.Color("237")
 
 	// Styles
 	s.Base = lg.NewStyle()
@@ -115,8 +118,12 @@ func NewStyles() (s Styles) {
 	s.Table.FilterInputFocused = lg.NewStyle().
 		Foreground(lg.Color("255"))
 
-	s.Table.FilterInputBlurred = lg.NewStyle().
+	s.Table.FilterInputBlurred = s.Table.FilterInputFocused.
 		Foreground(s.Color.Grey25)
+
+	s.Table.Footer = lg.NewStyle().
+		Border(lg.RoundedBorder(), true, false, false, false).
+		BorderForeground(s.Color.Grey90)
 
 	s.Settings.Base = lg.NewStyle()
 

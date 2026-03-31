@@ -341,13 +341,15 @@ func (m Model) renderFooter() string {
 	var s = &m.Styles
 	var footer string
 
+	width := m.width - s.Base.GetHorizontalFrameSize()
+
 	if m.filterInputFocused {
 		footer = s.FilterInputFocused.Render(m.filterInput.View())
 	} else if m.filterText != "" {
 		footer = s.FilterInputBlurred.Render("/" + m.filterText)
 	}
 
-	return s.Footer.Render(footer)
+	return s.Footer.Width(width).Render(footer)
 }
 
 // renderRows renders the data rows

@@ -52,6 +52,7 @@ func New() Model {
 	table.Styles.FilterMatch = styles.FilterMatch
 	table.Styles.FilterInputFocused = styles.FilterInputFocused
 	table.Styles.FilterInputBlurred = styles.FilterInputBlurred
+	table.Styles.Footer = styles.Footer
 
 	return Model{
 		model:           table,
