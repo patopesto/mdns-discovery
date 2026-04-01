@@ -14,10 +14,10 @@ type Styles struct {
 	HeaderCell lg.Style
 
 	// Style applied to each row
-	Row      lg.Style
+	Row lg.Style
 	// Style applied to each row cell
 	RowCell lg.Style
-	// Additional style applied to each cell of the selected row
+	// Additional style applied to the selected row
 	Selected lg.Style
 
 	// Style applied to footer

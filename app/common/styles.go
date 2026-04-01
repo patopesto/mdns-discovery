@@ -97,6 +97,7 @@ func NewStyles() (s Styles) {
 	s.Table.Base = lg.NewStyle().
 		BorderStyle(lg.RoundedBorder()).
 		BorderForeground(s.Color.Grey75).
+		Foreground(s.Color.Text).
 		Align(lg.Left)
 
 	s.Table.Header = lg.NewStyle().
@@ -109,7 +110,6 @@ func NewStyles() (s Styles) {
 	s.Table.Row = lg.NewStyle()
 
 	s.Table.RowCell = lg.NewStyle().
-		Foreground(s.Color.Text).
 		PaddingRight(1)
 
 	s.Table.Selected = s.Table.Row.

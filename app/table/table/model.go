@@ -18,10 +18,9 @@ type Model struct {
 	allRows []Row // stores all rows for filtering
 
 	// Display
-	width            int
-	height           int
-	innerHeight      int // height available to rows (after header and footer)
-	horizontalScroll int // horizontal scroll offset
+	width       int
+	height      int
+	innerHeight int // height available to rows (after header and footer)
 
 	// Control
 	Keys   KeyMap
@@ -54,7 +53,6 @@ func New(columns []Column) Model {
 		columns:          columns,
 		rows:             []Row{},
 		allRows:          []Row{},
-		horizontalScroll: 0,
 		focused:          true,
 		cursor:           0,
 		highlightedRow:   0,
@@ -213,7 +211,7 @@ func (m *Model) filterRows(rows []Row, search string) []Row {
 				val := row.GetSortValue(col.Key())
 				if idx := strings.Index(val, searchLower); idx >= 0 {
 					var indices []int
-					for i := idx; i < idx + len(search); i++ {
+					for i := idx; i < idx+len(search); i++ {
 						indices = append(indices, i)
 					}
 					matchInfo.CellMatches[col.Key()] = indices
@@ -259,15 +257,6 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				if m.cursor < len(m.rows)-1 {
 					m.cursor++
 				}
-			case key.Matches(msg, m.Keys.Left):
-				if m.horizontalScroll > 0 {
-					m.horizontalScroll -= 5
-					if m.horizontalScroll < 0 {
-						m.horizontalScroll = 0
-					}
-				}
-			case key.Matches(msg, m.Keys.Right):
-				m.horizontalScroll += 5
 			case key.Matches(msg, m.Keys.Filter) && m.filteringEnabled:
 				m.filterInputFocused = true
 				m.filterInput.Focus()
@@ -335,14 +324,17 @@ func (m Model) renderHeader() string {
 	var s = &m.Styles
 	var cells []string
 
+	rowstyle := s.Header.Inherit(s.Base.UnsetBorderStyle())
+	cellstyle := s.HeaderCell.Inherit(rowstyle.UnsetBorderStyle())
+
 	for _, col := range m.columns {
 		width := col.width
 		title := truncate(col.Title(), width, s.HeaderCell)
-		cell := s.HeaderCell.Width(width).Render(title)
+		cell := cellstyle.Width(width).Render(title)
 		cells = append(cells, cell)
 	}
 
-	return s.Header.Render(strings.Join(cells, ""))
+	return rowstyle.Render(strings.Join(cells, ""))
 }
 
 func (m Model) isFooterActive() bool {
@@ -357,15 +349,18 @@ func (m Model) renderFooter() string {
 	var s = &m.Styles
 	var footer string
 
+	rowstyle := s.Footer.Inherit(s.Base.UnsetBorderStyle())
 	width := m.width - s.Base.GetHorizontalFrameSize()
 
 	if m.filterInputFocused {
-		footer = s.FilterInputFocused.Render(m.filterInput.View())
+		style := s.FilterInputFocused.Inherit(rowstyle.UnsetBorderStyle())
+		footer = style.Render(m.filterInput.View())
 	} else if m.filterText != "" {
-		footer = s.FilterInputBlurred.Render("/ " + m.filterText)
+		style := s.FilterInputBlurred.Inherit(rowstyle.UnsetBorderStyle())
+		footer = style.Render("/ " + m.filterText)
 	}
 
-	return s.Footer.Width(width).Render(footer)
+	return rowstyle.Width(width).Render(footer)
 }
 
 // renderRows renders the data rows
@@ -406,15 +401,19 @@ func (m Model) renderRow(row Row, isSelected bool) string {
 	var s = &m.Styles
 	var cells []string
 
-	for _, col := range m.columns {
-		style := s.RowCell
-		if col.isStyled {
-			style = col.style.Inherit(style)
-		}
-		if isSelected {
-			style = style.Inherit(s.Selected)
-		}
+	// Inherit doesn't do margins and paddins but Inline() will block the rendering of
+	// future margins and paddings found in the cell and column styles.
+	// So we Inherit without Borders to get the style stacking to work
+	rowstyle := s.Row.Inherit(s.Base.UnsetBorderStyle())
+	if isSelected {
+		rowstyle = s.Selected.Inherit(rowstyle)
+	}
 
+	for _, col := range m.columns {
+		style := s.RowCell.Inherit(rowstyle)
+		if col.isStyled {
+			style = col.style.Inherit(rowstyle)
+		}
 		value := row.GetString(col.Key())
 		value = truncate(value, col.width, style)
 
@@ -423,11 +422,7 @@ func (m Model) renderRow(row Row, isSelected bool) string {
 			if matchRange, ok := row.MatchCache.CellMatches[col.Key()]; ok {
 				unmatched := style.Inline(true)
 				matched := s.FilterMatch.Inherit(unmatched)
-				styledValue := lg.StyleRunes(value, matchRange, matched, unmatched)
-
-				cell := style.Width(col.width).Render(styledValue)
-				cells = append(cells, cell)
-				continue
+				value = lg.StyleRunes(value, matchRange, matched, unmatched)
 			}
 		}
 
@@ -435,16 +430,19 @@ func (m Model) renderRow(row Row, isSelected bool) string {
 		cells = append(cells, cell)
 	}
 
-	return s.Row.Render(strings.Join(cells, ""))
+	return rowstyle.Render(strings.Join(cells, ""))
 }
 
 // renderRow renders a single empty row (for padding)
 func (m Model) renderEmptyRows(num int) string {
+	var s = &m.Styles
 	var cells []string
 	var rows []string
 
+	rowstyle := lg.NewStyle().Inherit(s.Base.UnsetBorderStyle())
+
 	for _, col := range m.columns {
-		cell := lg.NewStyle().Width(col.width).Render("")
+		cell := rowstyle.Width(col.width).Render("")
 		cells = append(cells, cell)
 	}
 	row := strings.Join(cells, "")
@@ -463,7 +461,7 @@ func (m Model) calculateColumnWidths() {
 	}
 
 	// Account for borders, etc if present
-	availableWidth := m.width - m.Styles.Base.GetVerticalFrameSize()
+	availableWidth := m.width - m.Styles.Base.GetHorizontalFrameSize()
 
 	// Calculate total flex and fixed widths
 	totalFlex := 0
