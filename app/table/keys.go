@@ -17,17 +17,22 @@ type KeyMap struct {
 	SortHostname key.Binding
 	SortIp       key.Binding
 	SortPort     key.Binding
+
+	Select key.Binding
+	Close  key.Binding
 }
 
 // Implements help.KeyMap interface
 func (m Model) ShortHelp() []key.Binding {
-	keys := []key.Binding{m.Keys.Sort}
-	if m.model.IsFilterInputFocused() {
-		keys = append(keys, m.Keys.FilterBlur)
-	} else if m.model.IsFiltered() {
-		keys = append(keys, m.Keys.Filter, m.Keys.FilterClear)
+	keys := []key.Binding{}
+	if m.isViewportVisible {
+		keys = append(keys, m.Keys.Select)
+	} else if m.table.IsFilterInputFocused() {
+		keys = append(keys, m.Keys.Sort, m.Keys.FilterBlur)
+	} else if m.table.IsFiltered() {
+		keys = append(keys, m.Keys.Sort, m.Keys.Filter, m.Keys.FilterClear, m.Keys.Select)
 	} else {
-		keys = append(keys, m.Keys.Filter)
+		keys = append(keys, m.Keys.Sort, m.Keys.Filter, m.Keys.Select)
 	}
 	return keys
 }
@@ -36,17 +41,18 @@ func (m Model) ShortHelp() []key.Binding {
 func (m Model) FullHelp() [][]key.Binding {
 	keys := [][]key.Binding{
 		{m.Keys.Up, m.Keys.Down},              // first column
-		{m.Keys.Left, m.Keys.Right},           // second column
-		{m.Keys.SortName, m.Keys.SortService}, // ...
+		{m.Keys.SortName, m.Keys.SortService}, // second column
 		{m.Keys.SortDomain, m.Keys.SortHostname},
 		{m.Keys.SortIp, m.Keys.SortPort},
 	}
-	if m.model.IsFilterInputFocused() {
+	if m.isViewportVisible {
+		keys = append(keys, []key.Binding{m.Keys.Select})
+	} else if m.table.IsFilterInputFocused() {
 		keys = append(keys, []key.Binding{m.Keys.FilterBlur})
-	} else if m.model.IsFiltered() {
-		keys = append(keys, []key.Binding{m.Keys.Filter, m.Keys.FilterClear})
+	} else if m.table.IsFiltered() {
+		keys = append(keys, []key.Binding{m.Keys.Select}, []key.Binding{m.Keys.Filter, m.Keys.FilterClear})
 	} else {
-		keys = append(keys, []key.Binding{m.Keys.Filter})
+		keys = append(keys, []key.Binding{m.Keys.Select}, []key.Binding{m.Keys.Filter})
 	}
 	return keys
 }
@@ -70,4 +76,7 @@ var TableKeyMap = KeyMap{
 	SortHostname: common.DefaultKeyMap.SortHostname,
 	SortIp:       common.DefaultKeyMap.SortIp,
 	SortPort:     common.DefaultKeyMap.SortPort,
+
+	Select: common.DefaultKeyMap.Select,
+	Close:  common.DefaultKeyMap.Close,
 }

@@ -47,6 +47,12 @@ type Styles struct {
 		Footer             lg.Style
 	}
 
+	Viewport struct {
+		Base  lg.Style
+		Label lg.Style
+		Value lg.Style
+	}
+
 	Settings struct {
 		Base lg.Style
 	}
@@ -128,6 +134,22 @@ func NewStyles() (s Styles) {
 	s.Table.Footer = lg.NewStyle().
 		Border(lg.RoundedBorder(), true, false, false, false).
 		BorderForeground(s.Color.Grey90)
+
+	s.Viewport.Base = lg.NewStyle().
+		Border(lg.RoundedBorder(), true, true, true, true).
+		BorderForegroundBlend(s.Color.Top, s.Color.Mid, s.Color.Bottom, s.Color.Mid, s.Color.Top).
+		Align(lg.Center, lg.Center).
+		Margin(1, 3).
+		Padding(1, 4)
+
+	s.Viewport.Label = lg.NewStyle().
+		Align(lg.Left).
+		Foreground(s.Color.MidLow).
+		Bold(true)
+
+	s.Viewport.Value = lg.NewStyle().
+		PaddingLeft(1).
+		Foreground(s.Color.Text)
 
 	s.Settings.Base = lg.NewStyle()
 

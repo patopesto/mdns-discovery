@@ -105,7 +105,7 @@ var DefaultKeyMap = KeyMap{
 	),
 	Select: key.NewBinding(
 		key.WithKeys("space", "enter"),
-		key.WithHelp("<space>/enter", "toggle"),
+		key.WithHelp("space/enter", "select"),
 	),
 	Close: key.NewBinding(
 		key.WithKeys("esc"),

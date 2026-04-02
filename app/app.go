@@ -213,10 +213,13 @@ func (m *App) viewHeader() string {
 
 	title := s.Header.Title.Render(APP_TITLE)
 	spinner := m.spinner.View()
+
 	itfs := strings.Builder{}
 	itfs.WriteString("interfaces ")
-	for _, itf := range m.discovery.Interfaces {
-		s := s.Header.Interface.Render(itf.Name)
+
+	gradient := lg.Blend1D(len(m.discovery.Interfaces), s.Color.Top, s.Color.Bottom)
+	for i, itf := range m.discovery.Interfaces {
+		s := s.Header.Interface.Foreground(gradient[i]).Render(itf.Name)
 		itfs.WriteString(s)
 	}
 	interfaces := s.Header.Interfaces.Render(itfs.String())

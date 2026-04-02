@@ -2,11 +2,14 @@ package table
 
 import (
 	"fmt"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 	"net"
 	"slices"
 	"strings"
 
 	"charm.land/bubbles/v2/key"
+	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
 	lg "charm.land/lipgloss/v2"
 
@@ -23,58 +26,72 @@ const (
 
 // Model wraps the table Model with additional logic for sorting and data transformation
 type Model struct {
-	model           table.Model
+	table           table.Model
 	columns         []table.Column
 	sortedColumnKey string
 	sortedDirection int
-	Keys            KeyMap
+
+	viewport          viewport.Model
+	isViewportVisible bool
+	offsetX			  int
+	offsetY			  int
+
+	Keys KeyMap
 }
 
 // NewModel creates a new table wrapper with predefined columns
 func New() Model {
-	var styles = &common.DefaultStyles.Table
+	var styles = &common.DefaultStyles
 
 	columns := []table.Column{
 		table.NewFlexColumn("name", "Name", 20).WithFiltered(true),
-		table.NewFlexColumn("service", "Service", 18).WithFiltered(true),
+		table.NewFlexColumn("service", "Service", 14).WithFiltered(true),
+		table.NewFlexColumn("protocol", "Protocol", 6).WithFiltered(true),
 		table.NewFlexColumn("domain", "Domain", 6).WithFiltered(true),
 		table.NewFlexColumn("hostname", "Hostname", 18).WithFiltered(true),
 		table.NewColumn("ip", "IP", 15).WithFiltered(true).WithSortFunc(SortIPs),
-		table.NewColumn("port", "Port", 6).WithFiltered(true).WithStyle(lg.NewStyle().Align(lg.Right).PaddingRight(1)),
-		table.NewFlexColumn("info", "Info", 20).WithFiltered(true).WithStyle(styles.RowCell.UnsetPadding()),
+		table.NewColumn("port", "Port", 6).WithFiltered(true).WithStyle(styles.Table.RowCell.Align(lg.Right).PaddingRight(1)),
+		table.NewFlexColumn("info", "Info", 20).WithFiltered(true).WithStyle(styles.Table.RowCell.UnsetPadding()),
 	}
 
 	table := table.New(columns).Focused(true).Filtered(true)
 	table.Keys = TableKeyMap.KeyMap
-	table.Styles.Base = styles.Base
-	table.Styles.Header = styles.Header
-	table.Styles.Row = styles.Row
-	table.Styles.RowCell = styles.RowCell
-	table.Styles.Selected = styles.Selected
-	table.Styles.FilterMatch = styles.FilterMatch
-	table.Styles.FilterInputFocused = styles.FilterInputFocused
-	table.Styles.FilterInputBlurred = styles.FilterInputBlurred
-	table.Styles.Footer = styles.Footer
+	table.Styles.Base = styles.Table.Base
+	table.Styles.Header = styles.Table.Header
+	table.Styles.Row = styles.Table.Row
+	table.Styles.RowCell = styles.Table.RowCell
+	table.Styles.Selected = styles.Table.Selected
+	table.Styles.FilterMatch = styles.Table.FilterMatch
+	table.Styles.FilterInputFocused = styles.Table.FilterInputFocused
+	table.Styles.FilterInputBlurred = styles.Table.FilterInputBlurred
+	table.Styles.Footer = styles.Table.Footer
+
+	viewport := viewport.New()
+	viewport.Style = styles.Viewport.Base
 
 	return Model{
-		model:           table,
-		columns:         columns,
-		sortedColumnKey: "",
-		sortedDirection: SortedNone,
-		Keys:            TableKeyMap,
+		table:             table,
+		columns:           columns,
+		sortedColumnKey:   "",
+		sortedDirection:   SortedNone,
+		viewport:          viewport,
+		isViewportVisible: false,
+		Keys:              TableKeyMap,
+		offsetX:  		   10,
+		offsetY:  		   6,
 	}
 }
 
 // UpdateColumns updates the column definitions
 func (m *Model) UpdateColumns(columns []table.Column) {
 	m.columns = columns
-	m.model = m.model.WithColumns(columns)
+	m.table = m.table.WithColumns(columns)
 }
 
 // SetRows sets the table rows from network service entries
 func (m *Model) SetRows(entries []network.ServiceEntry) {
 	rows := m.generateRowsFromData(entries)
-	m.model = m.model.WithRows(rows)
+	m.table = m.table.WithRows(rows)
 	m.applySort()
 }
 
@@ -86,8 +103,9 @@ func (m *Model) generateRowsFromData(data []network.ServiceEntry) []table.Row {
 		name := strings.Split(entry.Name, ".")
 		row := table.NewRow(table.RowData{
 			"name":     unescapeString(name[0]),
-			"service":  strings.Join(name[1:len(name)-2], "."),
-			"domain":   name[len(name)-2],
+			"service":  name[1][1:],
+			"protocol": name[2][1:],
+			"domain":   name[3],
 			"hostname": entry.Host,
 			"ip":       entry.AddrV4,
 			"port":     entry.Port,
@@ -117,11 +135,11 @@ func (m *Model) NextSort(columnKey string) {
 // applySort applies the current sort to the table
 func (m *Model) applySort() {
 	if m.sortedDirection == SortedAsc {
-		m.model = m.model.SortByAsc(m.sortedColumnKey)
+		m.table = m.table.SortByAsc(m.sortedColumnKey)
 	} else if m.sortedDirection == SortedDesc {
-		m.model = m.model.SortByDesc(m.sortedColumnKey)
+		m.table = m.table.SortByDesc(m.sortedColumnKey)
 	} else {
-		m.model = m.model.SortByAsc("")
+		m.table = m.table.SortByAsc("")
 	}
 
 	// Update column headers with sort indicators
@@ -139,7 +157,7 @@ func (m *Model) applySort() {
 			break
 		}
 	}
-	m.model = m.model.WithColumns(newColumns)
+	m.table = m.table.WithColumns(newColumns)
 }
 
 // GetSortedColumn returns the currently sorted column key
@@ -154,48 +172,122 @@ func (m *Model) GetSortedDirection() int {
 
 // IsFilterInputFocused returns whether the filter input is focused
 func (m *Model) IsFilterInputFocused() bool {
-	return m.model.IsFilterInputFocused()
+	return m.table.IsFilterInputFocused()
 }
 
-// View renders the table
-func (m *Model) View() string {
-	return m.model.View()
+// SetSize updates the table size
+func (m *Model) SetSize(width int, height int) {
+	m.table = m.table.WithTargetWidth(width).WithMinimumHeight(height)
+	m.viewport.SetWidth(width - (m.offsetX * 2))
+	m.viewport.SetHeight(height - (m.offsetY * 2))
+}
+
+// SetMinimumHeight sets the minimum height (for compatibility)
+func (m *Model) SetMinimumHeight(height int) {
+	m.table = m.table.WithMinimumHeight(height)
 }
 
 // Update handles messages
 func (m *Model) Update(msg tea.Msg) tea.Cmd {
 	var cmd tea.Cmd
-	m.model, cmd = m.model.Update(msg)
 
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
-		switch {
-		case key.Matches(msg, m.Keys.SortName):
-			m.NextSort("name")
-		case key.Matches(msg, m.Keys.SortService):
-			m.NextSort("service")
-		case key.Matches(msg, m.Keys.SortDomain):
-			m.NextSort("domain")
-		case key.Matches(msg, m.Keys.SortHostname):
-			m.NextSort("hostname")
-		case key.Matches(msg, m.Keys.SortIp):
-			m.NextSort("ip")
-		case key.Matches(msg, m.Keys.SortPort):
-			m.NextSort("port")
+		// Special case
+		if m.isViewportVisible == false {
+			switch {
+			case key.Matches(msg, m.Keys.Select) && !m.IsFilterInputFocused():
+				m.isViewportVisible = true
+				m.viewport.SetContent(m.renderSelectedRow())
+			case key.Matches(msg, m.Keys.SortName):
+				m.NextSort("name")
+			case key.Matches(msg, m.Keys.SortService):
+				m.NextSort("service")
+			case key.Matches(msg, m.Keys.SortDomain):
+				m.NextSort("domain")
+			case key.Matches(msg, m.Keys.SortHostname):
+				m.NextSort("hostname")
+			case key.Matches(msg, m.Keys.SortIp):
+				m.NextSort("ip")
+			case key.Matches(msg, m.Keys.SortPort):
+				m.NextSort("port")
+			default:
+				m.table, cmd = m.table.Update(msg)
+				return cmd
+			}
+		} else {
+			switch {
+			case key.Matches(msg, m.Keys.Close), key.Matches(msg, m.Keys.Select):
+				m.isViewportVisible = false
+			}
 		}
+	case table.RowSelectedMsg:
+		m.viewport.SetContent(m.renderSelectedRow())
 	}
 
 	return cmd
 }
 
-// SetSize updates the table size
-func (m *Model) SetSize(width, height int) {
-	m.model = m.model.WithTargetWidth(width).WithMinimumHeight(height)
+// View renders the table
+func (m *Model) View() string {
+	var s = &common.DefaultStyles
+	var compositior *lg.Compositor
+
+	if m.isViewportVisible {
+		m.table.Styles.Base = m.table.Styles.Base.Foreground(s.Color.Grey75)
+		m.table.Styles.Header = m.table.Styles.Header.Foreground(s.Color.Grey50)
+		m.table.Styles.Selected = m.table.Styles.Selected.Foreground(lg.Black).Background(s.Color.Grey75)
+		m.table.Styles.FilterMatch = m.table.Styles.FilterMatch.Foreground(s.Color.Grey50)
+		table := lg.NewLayer(m.table.View())
+
+		viewport := lg.NewLayer(m.viewport.View())
+		viewport.X(m.offsetX).Y(m.offsetY)
+		compositior = lg.NewCompositor(table, viewport)
+	} else {
+		m.table.Styles.Base = s.Table.Base
+		m.table.Styles.Header = s.Table.Header
+		m.table.Styles.Selected = s.Table.Selected
+		m.table.Styles.FilterMatch = s.Table.FilterMatch
+		table := lg.NewLayer(m.table.View())
+		compositior = lg.NewCompositor(table)
+	}
+
+	return compositior.Render()
 }
 
-// SetMinimumHeight sets the minimum height (for compatibility)
-func (m *Model) SetMinimumHeight(height int) {
-	m.model = m.model.WithMinimumHeight(height)
+func (m *Model) renderSelectedRow() string {
+	s := &common.DefaultStyles
+	row := m.table.SelectedRow()
+
+	caser := cases.Title(language.English)
+
+	var lines []string
+	for _, col := range m.columns {
+		key := col.Key()
+		value := row.GetString(key)
+
+		if key == "info" {
+			infos := strings.Split(value, "|")
+			if len(infos) > 1 {
+				parsed := []string{""}
+				for _, info := range infos {
+					split := strings.Split(info, "=")
+					subkey := s.Viewport.Label.Foreground(s.Color.Bottom).Render(split[0] + ":")
+					subval := s.Viewport.Value.Render(split[1])
+					subline := lg.JoinHorizontal(lg.Left, subkey, subval)
+					parsed = append(parsed, subline)
+				}
+				value = lg.JoinVertical(lg.Left, parsed...)
+			}
+		}
+
+		label := s.Viewport.Label.Width(15).Render(caser.String(key) + ":")
+		val := s.Viewport.Value.Render(value)
+		line := lg.JoinHorizontal(lg.Left, label, val)
+		lines = append(lines, line)
+	}
+
+	return lg.JoinVertical(lg.Left, lines...)
 }
 
 // SortIPs is a special sort function to sort the net.IP of the "ip" column
