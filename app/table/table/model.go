@@ -109,6 +109,39 @@ func (m Model) WithTargetWidth(width int) Model {
 	return m
 }
 
+// IsFiltered returns whether a filter is applied
+func (m Model) IsFiltered() bool {
+	return m.filterText != ""
+}
+
+// IsFilterInputFocused returns whether the filter input is focused
+func (m Model) IsFilterInputFocused() bool {
+	return m.filterInputFocused
+}
+
+// TotalRowCount returns the total number of rows without filtering
+func (m Model) TotalRowCount() int {
+	return len(m.allRows)
+}
+
+// VisibleRowCount returns the number of rows taking filtering into account
+func (m Model) VisibleRowCount() int {
+	return len(m.allRows)
+}
+
+// SelectedIndex returns the index of the currently selected row
+func (m Model) SelectedIndex() int {
+	return m.cursor
+}
+
+// SelectedRow returns the currently selected row
+func (m Model) SelectedRow() Row {
+	if m.cursor > 0 {  // safety
+		return m.rows[m.cursor]
+	}
+	return Row{}
+}
+
 // SortByAsc sorts by a column in ascending order
 func (m Model) SortByAsc(column string) Model {
 	m.sortColumn = column
@@ -123,16 +156,6 @@ func (m Model) SortByDesc(column string) Model {
 	m.sortAsc = false
 	m.applyFilterAndSort()
 	return m
-}
-
-// IsFiltered returns whether a filter is applied
-func (m Model) IsFiltered() bool {
-	return m.filterText != ""
-}
-
-// IsFilterInputFocused returns whether the filter input is focused
-func (m Model) IsFilterInputFocused() bool {
-	return m.filterInputFocused
 }
 
 // applyFilterAndSort applies both filtering and sorting to allRows
@@ -229,6 +252,18 @@ func (m *Model) filterRows(rows []Row, search string) []Row {
 	return filtered
 }
 
+// Init implements tea.Model
+func (m Model) Init() tea.Cmd {
+	return nil
+}
+
+// small helper to create a tea.Cmd from a custom tea.Msg
+func createCmd(msg any) tea.Cmd {
+	return func() tea.Msg {
+		return msg
+	}
+}
+
 // Update implements tea.Model
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	var cmd tea.Cmd
@@ -241,6 +276,8 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			case key.Matches(msg, m.Keys.FilterBlur):
 				m.filterInputFocused = false
 				m.filterInput.Blur()
+				cmd = createCmd(FilterInputBlurredMsg{})
+				cmds = append(cmds, cmd)
 			default:
 				m.filterInput, cmd = m.filterInput.Update(msg)
 				cmds = append(cmds, cmd)
@@ -252,20 +289,28 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			case key.Matches(msg, m.Keys.Up):
 				if m.cursor > 0 {
 					m.cursor--
+					cmd = createCmd(RowSelectedMsg{Index: m.cursor})
+					cmds = append(cmds, cmd)
 				}
 			case key.Matches(msg, m.Keys.Down):
 				if m.cursor < len(m.rows)-1 {
 					m.cursor++
+					cmd = createCmd(RowSelectedMsg{Index: m.cursor})
+					cmds = append(cmds, cmd)
 				}
 			case key.Matches(msg, m.Keys.Filter) && m.filteringEnabled:
 				m.filterInputFocused = true
 				m.filterInput.Focus()
 				cmd = textinput.Blink
 				cmds = append(cmds, cmd)
+				cmd = createCmd(FilterInputFocusedMsg{})
+				cmds = append(cmds, cmd)
 			case key.Matches(msg, m.Keys.FilterClear):
 				m.filterText = ""
 				m.filterInput.Reset()
 				m.applyFilterAndSort()
+				cmd = createCmd(FilterInputClearedMsg{})
+				cmds = append(cmds, cmd)
 			}
 		}
 	}
@@ -273,12 +318,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
-// Init implements tea.Model
-func (m Model) Init() tea.Cmd {
-	return nil
-}
-
-// View implements tea.Model
+// View implements the v1 tea.Model interface and returns the renderered table
 func (m Model) View() string {
 	if m.width == 0 || m.height == 0 {
 		return ""
