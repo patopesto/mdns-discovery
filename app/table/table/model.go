@@ -29,6 +29,7 @@ type Model struct {
 	// Focus and state
 	focused            bool
 	cursor             int // selected row index
+	scrollOffset       int // first visible row index
 	highlightedRow     int
 	filterInputFocused bool
 
@@ -55,6 +56,7 @@ func New(columns []Column) Model {
 		allRows:          []Row{},
 		focused:          true,
 		cursor:           0,
+		scrollOffset:     0,
 		highlightedRow:   0,
 		Keys:             DefaultKeyMap,
 		Styles:           DefaultStyles(),
@@ -140,7 +142,7 @@ func (m Model) SelectedIndex() int {
 
 // SelectedRow returns the currently selected row
 func (m Model) SelectedRow() Row {
-	if len(m.rows) > 0 {  // safety
+	if len(m.rows) > 0 { // safety
 		return m.rows[m.cursor]
 	}
 	return Row{}
@@ -213,6 +215,9 @@ func (m *Model) applyFilterAndSort() {
 
 	m.rows = filtered
 
+	// Reset scroll offset when filtering
+	m.scrollOffset = 0
+
 	// Ensure cursor is valid
 	if m.cursor >= len(m.rows) && len(m.rows) > 0 {
 		m.cursor = len(m.rows) - 1
@@ -256,8 +261,32 @@ func (m *Model) filterRows(rows []Row, search string) []Row {
 	return filtered
 }
 
+// updateScrollOffset adjusts scrollOffset to ensure cursor is visible
+func (m *Model) updateScrollOffset() {
+	if m.innerHeight > 0 && len(m.rows) > m.innerHeight {
+		// Cursor below visible area - scroll down
+		if m.cursor >= m.scrollOffset+m.innerHeight {
+			m.scrollOffset = m.cursor - m.innerHeight + 1
+		}
+		// Cursor above visible area - scroll up
+		if m.cursor < m.scrollOffset {
+			m.scrollOffset = m.cursor
+		}
+		// Clamp scrollOffset to valid bounds
+		maxOffset := len(m.rows) - m.innerHeight
+		if m.scrollOffset > maxOffset {
+			m.scrollOffset = maxOffset
+		}
+		if m.scrollOffset < 0 {
+			m.scrollOffset = 0
+		}
+	} else {
+		m.scrollOffset = 0
+	}
+}
+
 // Init implements tea.Model
-func (m Model) Init() tea.Cmd {
+func (m *Model) Init() tea.Cmd {
 	return nil
 }
 
@@ -299,12 +328,14 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			case key.Matches(msg, m.Keys.Up):
 				if m.cursor > 0 {
 					m.cursor--
+					m.updateScrollOffset()
 					cmd = createCmd(RowSelectedMsg{Index: m.cursor})
 					cmds = append(cmds, cmd)
 				}
 			case key.Matches(msg, m.Keys.Down):
 				if m.cursor < len(m.rows)-1 {
 					m.cursor++
+					m.updateScrollOffset()
 					cmd = createCmd(RowSelectedMsg{Index: m.cursor})
 					cmds = append(cmds, cmd)
 				}
@@ -327,12 +358,14 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			case tea.MouseWheelUp:
 				if m.cursor > 0 {
 					m.cursor--
+					m.updateScrollOffset()
 					cmd = createCmd(RowSelectedMsg{Index: m.cursor})
 					cmds = append(cmds, cmd)
 				}
 			case tea.MouseWheelDown:
 				if m.cursor < len(m.rows)-1 {
 					m.cursor++
+					m.updateScrollOffset()
 					cmd = createCmd(RowSelectedMsg{Index: m.cursor})
 					cmds = append(cmds, cmd)
 				}
@@ -344,7 +377,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 }
 
 // View implements the v1 tea.Model interface and returns the renderered table
-func (m Model) View() string {
+func (m *Model) View() string {
 	if m.width == 0 || m.height == 0 {
 		return ""
 	}
@@ -385,7 +418,7 @@ func (m Model) View() string {
 }
 
 // renderHeader renders the column headers
-func (m Model) renderHeader() string {
+func (m *Model) renderHeader() string {
 	var s = &m.Styles
 	var cells []string
 
@@ -402,7 +435,7 @@ func (m Model) renderHeader() string {
 	return rowstyle.Render(strings.Join(cells, ""))
 }
 
-func (m Model) isFooterActive() bool {
+func (m *Model) isFooterActive() bool {
 	if m.filteringEnabled {
 		return m.filterInputFocused || m.filterText != ""
 	}
@@ -410,7 +443,7 @@ func (m Model) isFooterActive() bool {
 }
 
 // renderFooter renders the filter input
-func (m Model) renderFooter() string {
+func (m *Model) renderFooter() string {
 	var s = &m.Styles
 	var footer string
 
@@ -429,26 +462,17 @@ func (m Model) renderFooter() string {
 }
 
 // renderRows renders the data rows
-func (m Model) renderRows() string {
+func (m *Model) renderRows() string {
 	var rows []string
 
-	// Calculate visible row range
 	startIdx := 0
 	endIdx := len(m.rows)
 
 	if m.innerHeight > 0 && len(m.rows) > m.innerHeight {
-		// Simple pagination: show from cursor
-		startIdx = m.cursor - m.innerHeight/2
-		if startIdx < 0 {
-			startIdx = 0
-		}
+		startIdx = m.scrollOffset
 		endIdx = startIdx + m.innerHeight
 		if endIdx > len(m.rows) {
 			endIdx = len(m.rows)
-			startIdx = endIdx - m.innerHeight
-			if startIdx < 0 {
-				startIdx = 0
-			}
 		}
 	}
 
@@ -462,7 +486,7 @@ func (m Model) renderRows() string {
 }
 
 // renderRow renders a single row
-func (m Model) renderRow(row Row, isSelected bool) string {
+func (m *Model) renderRow(row Row, isSelected bool) string {
 	var s = &m.Styles
 	var cells []string
 
@@ -499,7 +523,7 @@ func (m Model) renderRow(row Row, isSelected bool) string {
 }
 
 // renderRow renders a single empty row (for padding)
-func (m Model) renderEmptyRows(num int) string {
+func (m *Model) renderEmptyRows(num int) string {
 	var s = &m.Styles
 	var cells []string
 	var rows []string
@@ -520,7 +544,7 @@ func (m Model) renderEmptyRows(num int) string {
 }
 
 // calculateColumnWidths calculates widths for each column
-func (m Model) calculateColumnWidths() {
+func (m *Model) calculateColumnWidths() {
 	if len(m.columns) == 0 || m.width == 0 {
 		return
 	}
