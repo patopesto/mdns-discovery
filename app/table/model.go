@@ -44,17 +44,18 @@ func New() Model {
 	var styles = &common.DefaultStyles
 
 	columns := []table.Column{
-		table.NewFlexColumn("name", "Name", 20).WithFiltered(true),
-		table.NewFlexColumn("service", "Service", 14).WithFiltered(true),
-		table.NewFlexColumn("protocol", "Protocol", 6).WithFiltered(true),
-		table.NewFlexColumn("domain", "Domain", 6).WithFiltered(true),
-		table.NewFlexColumn("hostname", "Hostname", 18).WithFiltered(true),
-		table.NewColumn("ip", "IP", 15).WithFiltered(true).WithSortFunc(SortIPs),
-		table.NewColumn("port", "Port", 6).WithFiltered(true).WithStyle(styles.Table.RowCell.Align(lg.Right).PaddingRight(1)),
-		table.NewFlexColumn("info", "Info", 20).WithFiltered(true).WithStyle(styles.Table.RowCell.UnsetPadding()),
+		table.NewFlexColumn("name", "Name", 20).WithFiltering(true),
+		table.NewFlexColumn("service", "Service", 14).WithFiltering(true),
+		table.NewFlexColumn("protocol", "Protocol", 6).WithFiltering(true),
+		table.NewFlexColumn("domain", "Domain", 6).WithFiltering(true),
+		table.NewFlexColumn("hostname", "Hostname", 18).WithFiltering(true),
+		table.NewColumn("ip", "IP", 15).WithFiltering(true).WithSortFunc(SortIPs),
+		table.NewColumn("port", "Port", 6).WithFiltering(true).WithStyle(styles.Table.RowCell.Align(lg.Right).PaddingRight(1)),
+		table.NewFlexColumn("info", "Info", 20).WithFiltering(true).WithStyle(styles.Table.RowCell.UnsetPadding()),
 	}
 
-	table := table.New(columns).Focused(true).Filtered(true)
+	table := table.New(columns).WithFiltering(true)
+	table.Focus(true)
 	table.Keys = TableKeyMap.KeyMap
 	table.Styles.Base = styles.Table.Base
 	table.Styles.Header = styles.Table.Header
@@ -198,6 +199,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			switch {
 			case key.Matches(msg, m.Keys.Select) && !m.IsFilterInputFocused():
 				m.isViewportVisible = true
+				m.table.Focus(false)
 				m.viewport.SetContent(m.renderSelectedRow())
 			case key.Matches(msg, m.Keys.SortName):
 				m.NextSort("name")
@@ -219,10 +221,14 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 			switch {
 			case key.Matches(msg, m.Keys.Close), key.Matches(msg, m.Keys.Select):
 				m.isViewportVisible = false
+				m.table.Focus(true)
 			}
 		}
 	case table.RowSelectedMsg:
 		m.viewport.SetContent(m.renderSelectedRow())
+	default:
+		m.table, cmd = m.table.Update(msg)
+		return cmd
 	}
 
 	return cmd

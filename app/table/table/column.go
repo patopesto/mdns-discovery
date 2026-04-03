@@ -44,8 +44,8 @@ func NewFlexColumn(key, title string, flex int) Column {
 	}
 }
 
-// WithFiltered enables filtering for this column
-func (c Column) WithFiltered(filterable bool) Column {
+// WithFiltering enables filtering for this column
+func (c Column) WithFiltering(filterable bool) Column {
 	c.filterable = filterable
 	return c
 }

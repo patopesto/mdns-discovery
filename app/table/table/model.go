@@ -66,14 +66,8 @@ func New(columns []Column) Model {
 	}
 }
 
-// Focused sets whether the table has focus
-func (m Model) Focused(focused bool) Model {
-	m.focused = focused
-	return m
-}
-
-// Filtered enables/disables filtering
-func (m Model) Filtered(filtered bool) Model {
+// WithFiltering enables/disables filtering
+func (m Model) WithFiltering(filtered bool) Model {
 	m.filteringEnabled = filtered
 	return m
 }
@@ -109,7 +103,17 @@ func (m Model) WithTargetWidth(width int) Model {
 	return m
 }
 
-// IsFiltered returns whether a filter is applied
+// Focus sets whether the table has focus and interactions such as keys/mouse will work
+func (m *Model) Focus(focus bool) {
+	m.focused = focus
+}
+
+// IsFocused returns the focus state of the table
+func (m Model) IsFocused() bool {
+	return m.focused
+}
+
+// IsFiltered returns whether a filter is currently applied
 func (m Model) IsFiltered() bool {
 	return m.filterText != ""
 }
@@ -136,7 +140,7 @@ func (m Model) SelectedIndex() int {
 
 // SelectedRow returns the currently selected row
 func (m Model) SelectedRow() Row {
-	if m.cursor > 0 {  // safety
+	if len(m.rows) > 0 {  // safety
 		return m.rows[m.cursor]
 	}
 	return Row{}
@@ -266,12 +270,15 @@ func createCmd(msg any) tea.Cmd {
 
 // Update implements tea.Model
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
+	if m.focused == false {
+		return m, nil
+	}
 	var cmd tea.Cmd
 	var cmds []tea.Cmd
 
-	switch msg := msg.(type) {
-	case tea.KeyPressMsg:
-		if m.filterInputFocused {
+	if m.filterInputFocused {
+		switch msg := msg.(type) {
+		case tea.KeyPressMsg:
 			switch {
 			case key.Matches(msg, m.Keys.FilterBlur):
 				m.filterInputFocused = false
@@ -284,7 +291,10 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				m.filterText = m.filterInput.Value()
 				m.applyFilterAndSort()
 			}
-		} else {
+		}
+	} else {
+		switch msg := msg.(type) {
+		case tea.KeyPressMsg:
 			switch {
 			case key.Matches(msg, m.Keys.Up):
 				if m.cursor > 0 {
@@ -311,6 +321,21 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				m.applyFilterAndSort()
 				cmd = createCmd(FilterInputClearedMsg{})
 				cmds = append(cmds, cmd)
+			}
+		case tea.MouseWheelMsg:
+			switch msg.Button {
+			case tea.MouseWheelUp:
+				if m.cursor > 0 {
+					m.cursor--
+					cmd = createCmd(RowSelectedMsg{Index: m.cursor})
+					cmds = append(cmds, cmd)
+				}
+			case tea.MouseWheelDown:
+				if m.cursor < len(m.rows)-1 {
+					m.cursor++
+					cmd = createCmd(RowSelectedMsg{Index: m.cursor})
+					cmds = append(cmds, cmd)
+				}
 			}
 		}
 	}
