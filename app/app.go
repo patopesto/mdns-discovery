@@ -20,7 +20,7 @@ const APP_TITLE string = "mDNS Discovery"
 
 type App struct {
 	// data
-	discovery    network.Discovery
+	discovery    *network.Discovery
 	data         []network.ServiceEntry
 	entriesCh    chan network.ServiceEntry
 	showSettings bool
@@ -54,7 +54,7 @@ func NewApp(ifaces []string, domains []string) *App {
 	// Create the entries channel
 	entriesCh := make(chan network.ServiceEntry, 30)
 	discovery := network.InitDiscovery(ifaces, domains, entriesCh)
-	settings := settings.New(&discovery)
+	settings := settings.New(discovery)
 
 	app := &App{
 		discovery:    discovery,

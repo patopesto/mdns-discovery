@@ -33,9 +33,9 @@ type Discovery struct {
 	EntriesCh  chan ServiceEntry // Channel for newly discovered entries
 }
 
-func InitDiscovery(ifaces []string, domains []string, entriesCh chan ServiceEntry) Discovery {
+func InitDiscovery(ifaces []string, domains []string, entriesCh chan ServiceEntry) *Discovery {
 
-	d := Discovery{
+	d := &Discovery{
 		Domains:   domains,
 		services:  make(map[string][]*DiscoveryService, 0),
 		EntriesCh: entriesCh,
