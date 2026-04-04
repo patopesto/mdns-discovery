@@ -37,6 +37,9 @@ archives:
       - goos: windows
         format: zip
 
+gitlab_urls:
+  use_package_registry: true
+
 changelog:
   sort: asc
   filters:
