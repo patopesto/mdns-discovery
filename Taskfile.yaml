@@ -41,3 +41,10 @@ tasks:
   fmt:
     desc: "Run Formatting"
     cmd: go fmt ./...
+
+  vhs:
+    desc: "Run VHS demo gif generation"
+    cmds:
+      - cp dist/mdns-discovery .
+      - vhs assets/demo.tape
+      - rm ./mdns-discovery
