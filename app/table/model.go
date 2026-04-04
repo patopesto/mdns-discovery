@@ -33,8 +33,8 @@ type Model struct {
 
 	viewport          viewport.Model
 	isViewportVisible bool
-	offsetX			  int
-	offsetY			  int
+	offsetX           int
+	offsetY           int
 
 	Keys KeyMap
 }
@@ -78,8 +78,8 @@ func New() Model {
 		viewport:          viewport,
 		isViewportVisible: false,
 		Keys:              TableKeyMap,
-		offsetX:  		   10,
-		offsetY:  		   6,
+		offsetX:           10,
+		offsetY:           6,
 	}
 }
 

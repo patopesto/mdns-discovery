@@ -6,9 +6,15 @@ import (
 	"slices"
 )
 
-func GetInterfaces() []*net.Interface {
+// Custom network Interface overlay
+type Interface struct {
+	*net.Interface
+	IPv4 net.IP
+}
 
-	itfs := make([]*net.Interface, 0)
+func GetInterfaces() []*Interface {
+
+	itfs := make([]*Interface, 0)
 
 	ifaces, err := net.Interfaces()
 	if err != nil {
@@ -16,7 +22,8 @@ func GetInterfaces() []*net.Interface {
 		return nil
 	}
 
-	for _, iface := range ifaces {
+	for i := range ifaces {
+		iface := &ifaces[i]
 		switch {
 		case iface.Flags&net.FlagUp == 0:
 			continue // Ignore interfaces that are down
@@ -35,10 +42,16 @@ func GetInterfaces() []*net.Interface {
 		}
 
 		for _, a := range addrs {
-			switch a.(type) {
+			switch v := a.(type) {
 			case *net.IPNet:
-				if !slices.Contains(itfs, &iface) {
-					itfs = append(itfs, &iface)
+				if v.IP.To4() != nil {
+					itf := &Interface{
+						Interface: iface,
+						IPv4:      v.IP,
+					}
+					if !slices.Contains(itfs, itf) {
+						itfs = append(itfs, itf)
+					}
 				}
 			}
 		}
@@ -52,16 +65,34 @@ func GetInterfaces() []*net.Interface {
 	return itfs
 }
 
-func GetInterfacesByName(ifaces []string) []*net.Interface {
+func GetInterfacesByName(ifaces []string) []*Interface {
 
-	itfs := make([]*net.Interface, 0)
+	itfs := make([]*Interface, 0)
 
 	for _, iface := range ifaces {
 		itf, err := net.InterfaceByName(iface)
 		if err != nil {
 			continue
 		}
-		itfs = append(itfs, itf)
+		// Get the IPv4 address
+		addrs, err := itf.Addrs()
+		if err != nil {
+			log.Println(err)
+			continue
+		}
+		var ipv4 net.IP
+		for _, a := range addrs {
+			if v, ok := a.(*net.IPNet); ok {
+				if v.IP.To4() != nil {
+					ipv4 = v.IP
+					break
+				}
+			}
+		}
+		itfs = append(itfs, &Interface{
+			Interface: itf,
+			IPv4:      ipv4,
+		})
 	}
 
 	log.Println("Interfaces found:")

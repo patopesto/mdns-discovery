@@ -9,10 +9,10 @@ type RowSelectedMsg struct {
 }
 
 // FilterInputFocusedMsg is sent when the filter input is put into focus with the KeyMap.Filter key
-type FilterInputFocusedMsg struct {}
+type FilterInputFocusedMsg struct{}
 
 // FilterInputBlurredMsg is sent when the filter input is put out of focus with the KeyMap.FilterBlur key
-type FilterInputBlurredMsg struct {}
+type FilterInputBlurredMsg struct{}
 
 // FilterInputClearedMsg is sent when the filter is cleared with the KeyMap.FilterClear key
-type FilterInputClearedMsg struct {}
+type FilterInputClearedMsg struct{}

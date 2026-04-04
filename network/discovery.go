@@ -25,12 +25,12 @@ type ServiceEntry = mdns.ServiceEntry // type alias
 
 // Discovery manages all the DiscoveryServices
 type Discovery struct {
-	Interfaces []*net.Interface
+	Interfaces []*Interface
 	Domains    []string
 
-	services   map[string][]*DiscoveryService
-	servicesMu sync.RWMutex
-	EntriesCh  chan ServiceEntry // Channel for newly discovered entries
+	services  map[string][]*DiscoveryService
+	mu        sync.RWMutex
+	EntriesCh chan ServiceEntry // Channel for newly discovered entries
 }
 
 func InitDiscovery(ifaces []string, domains []string, entriesCh chan ServiceEntry) *Discovery {
@@ -49,7 +49,7 @@ func InitDiscovery(ifaces []string, domains []string, entriesCh chan ServiceEntr
 
 	for _, itf := range d.Interfaces {
 		for _, domain := range d.Domains {
-			service := NewDiscoveryService(MDNS_META_QUERY, domain, itf, d.EntriesCh)
+			service := NewDiscoveryService(MDNS_META_QUERY, domain, itf.Interface, d.EntriesCh)
 			d.services[itf.Name] = append(d.services[itf.Name], service)
 			service.Start()
 		}
@@ -59,13 +59,12 @@ func InitDiscovery(ifaces []string, domains []string, entriesCh chan ServiceEntr
 }
 
 // EnableInterface adds an interface to discovery and starts services for it
-func (d *Discovery) EnableInterface(iface *net.Interface) error {
-	d.servicesMu.Lock()
-	defer d.servicesMu.Unlock()
+func (d *Discovery) EnableInterface(iface *Interface) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
 
-	// Check if already enabled
 	for _, itf := range d.Interfaces {
-		if itf.Name == iface.Name {
+		if itf.Name == iface.Name { // already enabled
 			return nil
 		}
 	}
@@ -73,7 +72,7 @@ func (d *Discovery) EnableInterface(iface *net.Interface) error {
 	d.Interfaces = append(d.Interfaces, iface)
 
 	for _, domain := range d.Domains {
-		service := NewDiscoveryService(MDNS_META_QUERY, domain, iface, d.EntriesCh)
+		service := NewDiscoveryService(MDNS_META_QUERY, domain, iface.Interface, d.EntriesCh)
 		d.services[iface.Name] = append(d.services[iface.Name], service)
 		service.Start()
 	}
@@ -82,14 +81,13 @@ func (d *Discovery) EnableInterface(iface *net.Interface) error {
 }
 
 // DisableInterface removes an interface from discovery and stops its services
-func (d *Discovery) DisableInterface(ifaceName string) error {
-	d.servicesMu.Lock()
-	defer d.servicesMu.Unlock()
+func (d *Discovery) DisableInterface(iface *Interface) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
 
-	// Find and remove from Interfaces slice
 	found := false
 	for i, itf := range d.Interfaces {
-		if itf.Name == ifaceName {
+		if itf.Name == iface.Name {
 			d.Interfaces = append(d.Interfaces[:i], d.Interfaces[i+1:]...)
 			found = true
 			break
@@ -100,24 +98,23 @@ func (d *Discovery) DisableInterface(ifaceName string) error {
 		return nil
 	}
 
-	// Stop and remove services for this interface
-	if services, ok := d.services[ifaceName]; ok {
+	if services, ok := d.services[iface.Name]; ok {
 		for _, service := range services {
 			service.Stop()
 		}
-		delete(d.services, ifaceName)
+		delete(d.services, iface.Name)
 	}
 
 	return nil
 }
 
 // IsInterfaceEnabled checks if an interface is currently enabled
-func (d *Discovery) IsInterfaceEnabled(ifaceName string) bool {
-	d.servicesMu.RLock()
-	defer d.servicesMu.RUnlock()
+func (d *Discovery) IsInterfaceEnabled(name string) bool {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
 
 	for _, itf := range d.Interfaces {
-		if itf.Name == ifaceName {
+		if itf.Name == name {
 			return true
 		}
 	}

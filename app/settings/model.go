@@ -3,7 +3,6 @@ package settings
 import (
 	"fmt"
 	"io"
-	"net"
 
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/list"
@@ -65,18 +64,32 @@ func NewStyles() (s Styles) {
 
 // Item represents an item in the list
 type Item struct {
-	iface   *net.Interface
-	enabled bool
+	iface *network.Interface
 }
 
 // Implements list.Item interface
 func (i Item) FilterValue() string { return i.iface.Name }
 func (i Item) Title() string       { return i.iface.Name }
-func (i Item) Description() string { return i.iface.HardwareAddr.String() }
+func (i Item) Description() string {
+	macAddr := i.iface.HardwareAddr.String()
+	if macAddr == "" {
+		macAddr = "no MAC address"
+	}
+
+	var ipAddr string
+	if i.iface.IPv4 != nil {
+		ipAddr = i.iface.IPv4.String()
+	} else {
+		ipAddr = "no IPv4 address"
+	}
+
+	return fmt.Sprintf("%s | %s", macAddr, ipAddr)
+}
 
 // Delegate customizes how interface items are rendered
 type Delegate struct {
-	Styles Styles
+	Styles    Styles
+	IsEnabled func(string) bool
 }
 
 func NewDelegate() Delegate {
@@ -97,8 +110,11 @@ func (d Delegate) Render(w io.Writer, m list.Model, index int, item list.Item) {
 	}
 	var s = &d.Styles
 
+	// Check enabled state from Discovery via callback
+	isEnabled := d.IsEnabled != nil && d.IsEnabled(i.iface.Name)
+
 	var checkbox string
-	if i.enabled {
+	if isEnabled {
 		checkbox = "[✓]"
 	} else {
 		checkbox = "[ ]"
@@ -112,7 +128,7 @@ func (d Delegate) Render(w io.Writer, m list.Model, index int, item list.Item) {
 		title = s.SelectedTitle.Render(title)
 		desc = s.SelectedDesc.Render(desc)
 	} else {
-		if i.enabled {
+		if isEnabled {
 			checkbox = s.NormalTitle.UnsetPadding().Render(checkbox)
 		} else {
 			checkbox = s.NormalDesc.UnsetPadding().Render(checkbox)
@@ -153,23 +169,18 @@ func New(discovery *network.Discovery) *Model {
 	// Get all available interfaces
 	allInterfaces := network.GetInterfaces()
 
-	// Get currently enabled interfaces
-	enabledMap := make(map[string]bool)
-	for _, iface := range discovery.Interfaces {
-		enabledMap[iface.Name] = true
-	}
-
 	for _, iface := range allInterfaces {
-		items = append(items, Item{
-			iface:   iface,
-			enabled: enabledMap[iface.Name],
-		})
+		items = append(items, Item{iface: iface})
 	}
 
 	styles := NewStyles()
 
 	delegate := NewDelegate()
 	delegate.Styles = styles
+	delegate.IsEnabled = func(name string) bool {
+		return discovery.IsInterfaceEnabled(name)
+	}
+
 	l := list.New(items, delegate, 0, 0)
 	l.Title = "Select network interfaces"
 	l.KeyMap = SettingsKeyMap.KeyMap
@@ -191,8 +202,8 @@ func New(discovery *network.Discovery) *Model {
 
 // ToggleInterfaceMsg is sent when an interface is toggled
 type ToggleInterfaceMsg struct {
-	IfaceName string
-	Enabled   bool
+	Iface   *network.Interface
+	Enabled bool
 }
 
 // ToggleInterface enables/disables the currently selected interface
@@ -202,21 +213,12 @@ func (m *Model) ToggleInterface() tea.Cmd {
 		return nil
 	}
 
-	item.enabled = !item.enabled
+	enabled := m.discovery.IsInterfaceEnabled(item.iface.Name)
 
-	// Update the item in the list
-	items := m.list.Items()
-	idx := m.list.Index()
-	if idx < len(items) {
-		items[idx] = item
-		m.list.SetItems(items)
-	}
-
-	// Return a command to update the discovery
 	return func() tea.Msg {
 		return ToggleInterfaceMsg{
-			IfaceName: item.iface.Name,
-			Enabled:   item.enabled,
+			Iface:   item.iface,
+			Enabled: !enabled,
 		}
 	}
 }
@@ -242,6 +244,17 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 
 func (m *Model) SetSize(width, height int) {
 	m.list.SetSize(width, height)
+}
+
+func (m *Model) Refresh() {
+	items := []list.Item{}
+	allInterfaces := network.GetInterfaces()
+
+	for _, iface := range allInterfaces {
+		items = append(items, Item{iface: iface})
+	}
+
+	m.list.SetItems(items)
 }
 
 func (m *Model) View() string {

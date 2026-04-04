@@ -130,6 +130,9 @@ func (m *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch {
 		case key.Matches(msg, m.keys.Settings):
 			m.showSettings = !m.showSettings
+			if m.showSettings {
+				m.settings.Refresh()
+			}
 		case key.Matches(msg, m.keys.Help):
 			m.help.ShowAll = !m.help.ShowAll
 		case key.Matches(msg, m.keys.Quit):
@@ -145,16 +148,9 @@ func (m *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case settings.ToggleInterfaceMsg:
 		if msg.Enabled {
-			// Find the interface by name
-			allInterfaces := network.GetInterfaces()
-			for _, iface := range allInterfaces {
-				if iface.Name == msg.IfaceName {
-					m.discovery.EnableInterface(iface)
-					break
-				}
-			}
+			m.discovery.EnableInterface(msg.Iface)
 		} else {
-			m.discovery.DisableInterface(msg.IfaceName)
+			m.discovery.DisableInterface(msg.Iface)
 		}
 	}
 
@@ -205,7 +201,9 @@ func (m *App) View() tea.View {
 	view := tea.NewView(s.Base.Render(content))
 	view.AltScreen = true
 	view.WindowTitle = APP_TITLE
-	view.MouseMode = tea.MouseModeCellMotion
+	// Disabling mouse support for now as it breaks mouse highlighting selection
+	// https://github.com/charmbracelet/bubbletea/issues/162
+	// view.MouseMode = tea.MouseModeCellMotion
 	return view
 }
 
