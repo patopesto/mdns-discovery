@@ -194,8 +194,13 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
-		// Special case
 		if m.isViewportVisible == false {
+			// Special case
+			if m.IsFilterInputFocused() {
+				m.table, cmd = m.table.Update(msg)
+				return cmd
+			}
+			
 			switch {
 			case key.Matches(msg, m.Keys.Select) && !m.IsFilterInputFocused():
 				m.isViewportVisible = true
