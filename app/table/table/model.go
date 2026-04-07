@@ -179,7 +179,6 @@ func (m *Model) applyFilterAndSort() {
 
 	// Then sort
 	if m.sortColumn != "" {
-		// Find the sort function for this column
 		var sortFunc SortFunc
 		for _, col := range m.columns {
 			if col.Key() == m.sortColumn {
@@ -189,22 +188,9 @@ func (m *Model) applyFilterAndSort() {
 		}
 
 		slices.SortStableFunc(filtered, func(a, b Row) int {
-			var cmp int
-			if sortFunc != nil {
-				// Use custom sort function
-				valA := a.Data[m.sortColumn]
-				valB := b.Data[m.sortColumn]
-				cmp = sortFunc(valA, valB)
-			} else {
-				// Use default string comparison
-				valA := a.GetSortValue(m.sortColumn)
-				valB := b.GetSortValue(m.sortColumn)
-				if valA < valB {
-					cmp = -1
-				} else if valA > valB {
-					cmp = 1
-				}
-			}
+			valA := a.Data[m.sortColumn]
+			valB := b.Data[m.sortColumn]
+			cmp := sortFunc(valA, valB)
 			// Reverse if descending
 			if !m.sortAsc {
 				cmp = -cmp

@@ -1,15 +1,12 @@
 package table
 
 import (
+	"cmp"
+	"fmt"
+	"strings"
+
 	lg "charm.land/lipgloss/v2"
 )
-
-// SortFunc is a user-configurable sort function for a column.
-// It receives two values and should return:
-//   - a negative number if a < b
-//   - zero if a == b
-//   - a positive number if a > b
-type SortFunc func(a, b interface{}) int
 
 // Column defines a table column
 type Column struct {
@@ -31,6 +28,7 @@ func NewColumn(key, title string, width int) Column {
 		title:  title,
 		width:  width,
 		isFlex: false,
+		sortFunc: defaultSortFunc,
 	}
 }
 
@@ -41,6 +39,7 @@ func NewFlexColumn(key, title string, flex int) Column {
 		title:  title,
 		flex:   flex,
 		isFlex: true,
+		sortFunc: defaultSortFunc,
 	}
 }
 
@@ -102,4 +101,69 @@ func (c Column) IsFilterable() bool {
 // GetSortFunc returns the custom sort function for this column (may be nil)
 func (c Column) GetSortFunc() SortFunc {
 	return c.sortFunc
+}
+
+// SortFunc is a user-configurable sort function for a column.
+// It receives two values and should return:
+//   - a negative number if a < b
+//   - zero if a == b
+//   - a positive number if a > b
+type SortFunc func(a, b interface{}) int
+
+// default function used for columns unless overriden
+func defaultSortFunc(a, b interface{}) int {
+	// Handle nil cases
+	switch {
+	case a == nil && b == nil:
+		return 0
+	case a == nil:
+		return -1
+	case b == nil:
+		return 1
+	}
+
+	// Try numeric comparison
+	fa, aOk := toFloat64(a)
+	fb, bOk := toFloat64(b)
+	if aOk && bOk {
+		return cmp.Compare(fa, fb)
+	}
+
+	// Fall back to string comparison
+	return cmp.Compare(
+		strings.ToLower(fmt.Sprintf("%v", a)),
+		strings.ToLower(fmt.Sprintf("%v", b)),
+	)
+}
+
+// toFloat64 attempts to convert a value to float64. Returns (0, false) if not a numeric type.
+func toFloat64(v interface{}) (float64, bool) {
+	switch n := v.(type) {
+	case int:
+		return float64(n), true
+	case int8:
+		return float64(n), true
+	case int16:
+		return float64(n), true
+	case int32:
+		return float64(n), true
+	case int64:
+		return float64(n), true
+	case uint:
+		return float64(n), true
+	case uint8:
+		return float64(n), true
+	case uint16:
+		return float64(n), true
+	case uint32:
+		return float64(n), true
+	case uint64:
+		return float64(n), true
+	case float32:
+		return float64(n), true
+	case float64:
+		return n, true
+	default:
+		return 0, false
+	}
 }
