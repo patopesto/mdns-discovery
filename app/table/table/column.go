@@ -24,10 +24,10 @@ type Column struct {
 // NewColumn creates a new fixed-width column
 func NewColumn(key, title string, width int) Column {
 	return Column{
-		key:    key,
-		title:  title,
-		width:  width,
-		isFlex: false,
+		key:      key,
+		title:    title,
+		width:    width,
+		isFlex:   false,
 		sortFunc: defaultSortFunc,
 	}
 }
@@ -35,10 +35,10 @@ func NewColumn(key, title string, width int) Column {
 // NewFlexColumn creates a new flexible-width column
 func NewFlexColumn(key, title string, flex int) Column {
 	return Column{
-		key:    key,
-		title:  title,
-		flex:   flex,
-		isFlex: true,
+		key:      key,
+		title:    title,
+		flex:     flex,
+		isFlex:   true,
 		sortFunc: defaultSortFunc,
 	}
 }

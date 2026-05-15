@@ -101,12 +101,12 @@ func (m *Model) generateRowsFromData(data []network.ServiceEntry) []table.Row {
 	rows := []table.Row{}
 
 	for _, entry := range data {
-		name := strings.Split(entry.Name, ".")
+		name, service, protocol, domain := parseServiceName(entry.Name)
 		row := table.NewRow(table.RowData{
-			"name":     unescapeString(name[0]),
-			"service":  name[1][1:],
-			"protocol": name[2][1:],
-			"domain":   name[3],
+			"name":     name,
+			"service":  service,
+			"protocol": protocol,
+			"domain":   domain,
 			"hostname": entry.Host,
 			"ip":       entry.AddrV4,
 			"port":     entry.Port,
@@ -200,7 +200,7 @@ func (m *Model) Update(msg tea.Msg) tea.Cmd {
 				m.table, cmd = m.table.Update(msg)
 				return cmd
 			}
-			
+
 			switch {
 			case key.Matches(msg, m.Keys.Select) && !m.IsFilterInputFocused():
 				m.isViewportVisible = true
@@ -346,4 +346,36 @@ func unescapeString(s string) string {
 		}
 	}
 	return buf.String()
+}
+
+// parseServiceName parses an mDNS service name into its components. ie: instance.service.protocol.domain
+func parseServiceName(name string) (instance, service, protocol, domain string) {
+	// Find the first occurrence of "._<service>." which marks the start of the service portion
+	idx := strings.Index(name, "._")
+	if idx == -1 {
+		// Fallback: try simple split if pattern not found
+		parts := strings.Split(name, ".")
+		if len(parts) >= 4 {
+			return unescapeString(parts[0]),
+				unescapeString(parts[1][1:]),
+				unescapeString(parts[2][1:]),
+				parts[3]
+		}
+		return unescapeString(name), "", "", ""
+	}
+
+	// Extract instance name (everything before "._<service>")
+	instance = unescapeString(name[:idx])
+
+	// Parse the rest: _service._protocol.domain
+	rest := name[idx+1:] // Skip the dot before underscore, start with _service
+	parts := strings.Split(rest, ".")
+
+	if len(parts) >= 3 {
+		service = unescapeString(parts[0][1:])  // Remove leading underscore
+		protocol = unescapeString(parts[1][1:]) // Remove leading underscore
+		domain = parts[2]
+	}
+
+	return instance, service, protocol, domain
 }

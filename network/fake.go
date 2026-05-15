@@ -77,6 +77,20 @@ var FakeData = []ServiceEntry{
 		Port:   7000,
 		Info:   "state=\"plenty of secrets here\"",
 	},
+	{
+		Name:   "Resolume\\ Arena\\ 7\\.22\\.9\\ -\\ Webserver\\ &\\ Rest\\ API._http._tcp.local.",
+		Host:   "Disguisix.local.",
+		AddrV4: net.IPv4(192, 168, 1, 123),
+		Port:   8080,
+		Info:   "",
+	},
+	{
+		Name:   "MadMapperix.lan (Arena - Screen)._ndi._tcp.local.",
+		Host:   "MadMapperix.local.",
+		AddrV4: net.IPv4(192, 168, 1, 123),
+		Port:   5962,
+		Info:   "groups=public|discovery=5960",
+	},
 }
 
 // Extended fake data for testing TUI scrolling
